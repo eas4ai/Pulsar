@@ -1,10 +1,13 @@
 pub mod admin_articles;
+pub mod admin_taxonomy;
+pub mod admin_users;
 pub mod articles;
 pub mod auth;
 pub mod dashboard;
 pub mod docs;
 pub mod feed;
 pub mod home;
+pub mod moderation;
 pub mod password_reset;
 pub mod profile;
 pub mod verify_email;

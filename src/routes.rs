@@ -75,15 +75,27 @@ routes! {
     get!("/admin/articles/{id}/edit", controllers::admin_articles::edit)
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
-        .middleware(PermissionMiddleware::<User>::new("articles.update")),
+        .middleware(PermissionMiddleware::<User>::new("articles.create")),
     put!("/admin/articles/{id}", controllers::admin_articles::update)
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
-        .middleware(PermissionMiddleware::<User>::new("articles.update")),
+        .middleware(PermissionMiddleware::<User>::new("articles.create")),
     post!("/admin/articles/{id}/publish", controllers::admin_articles::publish)
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
         .middleware(PermissionMiddleware::<User>::new("articles.publish")),
+    get!("/admin/taxonomy", controllers::admin_taxonomy::index)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
+    get!("/admin/users", controllers::admin_users::index)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("users.manage")),
+    get!("/moderation", controllers::moderation::index)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("moderation.review")),
 
     fallback!(StaticFiles::public()
         .cache_control("public, max-age=86400")

@@ -7,17 +7,66 @@ use suprnova::{Command, FrameworkError, HasRoles, TypedCommand};
 use crate::models::user::User;
 
 const ADMIN_ROLE: &str = "admin";
+const MODERATOR_ROLE: &str = "moderator";
 const AUTHOR_ROLE: &str = "author";
+const CONTRIBUTOR_ROLE: &str = "contributor";
 const MEMBER_ROLE: &str = "member";
 
-const ARTICLE_PERMISSIONS: [&str; 4] = [
-    "articles.create",
-    "articles.update",
-    "articles.publish",
-    "articles.delete",
+const DEFAULT_ROLES: [&str; 5] = [
+    ADMIN_ROLE,
+    MODERATOR_ROLE,
+    AUTHOR_ROLE,
+    CONTRIBUTOR_ROLE,
+    MEMBER_ROLE,
 ];
 
-const AUTHOR_PERMISSIONS: [&str; 3] = ["articles.create", "articles.update", "articles.publish"];
+const ALL_PERMISSIONS: [&str; 16] = [
+    "articles.create",
+    "articles.submit",
+    "articles.review",
+    "articles.publish",
+    "questions.create",
+    "answers.accept_own",
+    "comments.create",
+    "resources.submit",
+    "resources.review",
+    "resources.publish",
+    "moderation.review",
+    "moderation.decide",
+    "users.manage",
+    "roles.manage",
+    "taxonomy.manage",
+    "settings.manage",
+];
+
+const MODERATOR_PERMISSIONS: [&str; 4] = [
+    "articles.review",
+    "resources.review",
+    "moderation.review",
+    "moderation.decide",
+];
+
+const AUTHOR_PERMISSIONS: [&str; 4] = [
+    "articles.create",
+    "articles.submit",
+    "articles.review",
+    "articles.publish",
+];
+
+const CONTRIBUTOR_PERMISSIONS: [&str; 5] = [
+    "articles.create",
+    "articles.submit",
+    "questions.create",
+    "comments.create",
+    "resources.submit",
+];
+
+const MEMBER_PERMISSIONS: [&str; 4] = [
+    "questions.create",
+    "answers.accept_own",
+    "comments.create",
+    "resources.submit",
+];
 
 #[derive(clap::Parser, Command, Debug)]
 #[console(
@@ -28,7 +77,7 @@ pub struct UsersPromoteCommand {
     /// Email address of the user to promote.
     #[arg(long)]
     pub email: String,
-    /// Role to assign: admin, author, or member.
+    /// Role to assign: admin, moderator, author, contributor, or member.
     #[arg(long)]
     pub role: String,
 }
@@ -43,23 +92,31 @@ impl TypedCommand for UsersPromoteCommand {
     }
 }
 
-/// Create Pulsar's default roles and article permissions.
+/// Create Pulsar's default roles and V2 permissions.
 ///
 /// Safe to run more than once; the framework RBAC helpers skip existing rows.
 pub async fn seed_default_roles() -> Result<(), FrameworkError> {
-    create_role(ADMIN_ROLE).await?;
-    create_role(AUTHOR_ROLE).await?;
-    create_role(MEMBER_ROLE).await?;
+    for role in DEFAULT_ROLES {
+        create_role(role).await?;
+    }
 
-    for permission in ARTICLE_PERMISSIONS {
+    for permission in ALL_PERMISSIONS {
         create_permission(permission).await?;
         give_permission_to_role(ADMIN_ROLE, permission).await?;
     }
 
-    for permission in AUTHOR_PERMISSIONS {
-        give_permission_to_role(AUTHOR_ROLE, permission).await?;
-    }
+    grant_permissions(MODERATOR_ROLE, &MODERATOR_PERMISSIONS).await?;
+    grant_permissions(AUTHOR_ROLE, &AUTHOR_PERMISSIONS).await?;
+    grant_permissions(CONTRIBUTOR_ROLE, &CONTRIBUTOR_PERMISSIONS).await?;
+    grant_permissions(MEMBER_ROLE, &MEMBER_PERMISSIONS).await?;
 
+    Ok(())
+}
+
+async fn grant_permissions(role: &str, permissions: &[&str]) -> Result<(), FrameworkError> {
+    for &permission in permissions {
+        give_permission_to_role(role, permission).await?;
+    }
     Ok(())
 }
 
@@ -81,10 +138,11 @@ pub async fn promote_user(email: &str, role: &str) -> Result<User, FrameworkErro
 
 fn normalize_role(role: &str) -> Result<String, FrameworkError> {
     let normalized = role.trim().to_ascii_lowercase();
-    match normalized.as_str() {
-        ADMIN_ROLE | AUTHOR_ROLE | MEMBER_ROLE => Ok(normalized),
-        _ => Err(FrameworkError::bad_request(format!(
-            "Unknown role `{role}`. Expected admin, author, or member."
-        ))),
+    if DEFAULT_ROLES.contains(&normalized.as_str()) {
+        Ok(normalized)
+    } else {
+        Err(FrameworkError::bad_request(format!(
+            "Unknown role `{role}`. Expected admin, moderator, author, contributor, or member."
+        )))
     }
 }

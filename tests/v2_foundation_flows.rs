@@ -3,13 +3,16 @@
 mod common;
 
 mod v2_foundation_flows {
+    use chrono::Utc;
     use serde_json::json;
 
+    use suprnova::HasRoles;
     use suprnova::attrs;
     use suprnova::eloquent::Model;
     use suprnova::mail::Mail;
 
     use super::common::{Client, setup};
+    use pulsar::commands::users_promote::seed_default_roles;
     use pulsar::models::badge::Badge;
     use pulsar::models::category::Category;
     use pulsar::models::profile::Profile;
@@ -17,6 +20,33 @@ mod v2_foundation_flows {
     use pulsar::models::tag::Tag;
     use pulsar::models::topic::Topic;
     use pulsar::models::user::User;
+
+    async fn verified_user(name: &str, email: &str) -> User {
+        let mut user = User::create(name, email, "secretpass")
+            .await
+            .expect("create user");
+        user.email_verified_at = Some(Utc::now());
+        Model::save(&user).await.expect("verify user");
+        user
+    }
+
+    async fn login(client: &mut Client, email: &str) {
+        let page = client.get("/login").await;
+        assert_eq!(page.status, 200, "GET /login should set CSRF cookie");
+
+        let resp = client
+            .post_json(
+                "/login",
+                json!({
+                    "email": email,
+                    "password": "secretpass",
+                    "remember": false,
+                }),
+            )
+            .await;
+        assert_eq!(resp.status, 302, "login should redirect: {}", resp.body);
+        assert_eq!(resp.location(), "/dashboard");
+    }
 
     #[tokio::test]
     async fn profile_is_created_for_registered_users() {
@@ -335,5 +365,57 @@ mod v2_foundation_flows {
         assert_eq!(events.len(), 2);
         assert_eq!(events[0].id, second.id);
         assert_eq!(events[1].id, first.id);
+    }
+
+    #[tokio::test]
+    async fn member_cannot_open_admin_taxonomy() {
+        let mut harness = setup().await;
+        seed_default_roles().await.expect("seed roles");
+        let user = verified_user("Taxonomy Member", "taxonomy-member@pulsar.test").await;
+        user.assign_role("member").await.expect("assign member");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-member@pulsar.test").await;
+
+        let resp = client.get("/admin/taxonomy").await;
+        assert_eq!(resp.status, 403);
+    }
+
+    #[tokio::test]
+    async fn moderator_can_open_moderation_access_surface() {
+        let mut harness = setup().await;
+        seed_default_roles().await.expect("seed roles");
+        let user = verified_user("Queue Moderator", "queue-moderator@pulsar.test").await;
+        user.assign_role("moderator")
+            .await
+            .expect("assign moderator");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "queue-moderator@pulsar.test").await;
+
+        let resp = client.get("/moderation").await;
+        assert_eq!(
+            resp.status, 200,
+            "moderator should reach moderation foundation surface: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn admin_can_open_admin_users() {
+        let mut harness = setup().await;
+        seed_default_roles().await.expect("seed roles");
+        let user = verified_user("Users Admin", "users-admin@pulsar.test").await;
+        user.assign_role("admin").await.expect("assign admin");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "users-admin@pulsar.test").await;
+
+        let resp = client.get("/admin/users").await;
+        assert_eq!(
+            resp.status, 200,
+            "admin should reach users foundation surface: {}",
+            resp.body
+        );
     }
 }
