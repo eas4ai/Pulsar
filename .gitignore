@@ -11,6 +11,10 @@ frontend/dist
 /public/assets
 /docs/superpowers
 
+# Local reference material
+reference/
+HANDOFF.md
+
 # IDE
 .idea
 .vscode
