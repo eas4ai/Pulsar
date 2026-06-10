@@ -20,6 +20,7 @@ async fn rbac_author_role_has_v2_article_authoring_permissions() {
     assert_eq!(promoted.id, user.id);
     assert!(promoted.has_role("author").await.unwrap());
     assert!(promoted.has_permission_to("articles.create").await.unwrap());
+    assert!(promoted.has_permission_to("articles.update").await.unwrap());
     assert!(promoted.has_permission_to("articles.submit").await.unwrap());
     assert!(promoted.has_permission_to("articles.review").await.unwrap());
     assert!(
@@ -74,6 +75,7 @@ async fn rbac_moderator_role_has_v2_review_and_moderation_permissions() {
             .await
             .unwrap()
     );
+    assert!(!promoted.has_permission_to("articles.update").await.unwrap());
     assert!(!promoted.has_permission_to("users.manage").await.unwrap());
 }
 
@@ -89,7 +91,6 @@ async fn rbac_contributor_role_has_v2_submission_permissions() {
         .expect("promote user");
 
     assert!(promoted.has_role("contributor").await.unwrap());
-    assert!(promoted.has_permission_to("articles.create").await.unwrap());
     assert!(promoted.has_permission_to("articles.submit").await.unwrap());
     assert!(
         promoted
@@ -104,6 +105,7 @@ async fn rbac_contributor_role_has_v2_submission_permissions() {
             .unwrap()
     );
     assert!(promoted.has_permission_to("comments.create").await.unwrap());
+    assert!(!promoted.has_permission_to("articles.create").await.unwrap());
     assert!(
         !promoted
             .has_permission_to("articles.publish")
@@ -116,6 +118,7 @@ async fn rbac_contributor_role_has_v2_submission_permissions() {
             .await
             .unwrap()
     );
+    assert!(!promoted.has_permission_to("articles.update").await.unwrap());
 }
 
 #[tokio::test]
@@ -184,6 +187,7 @@ async fn rbac_console_command_promotes_existing_user() {
     assert!(user.has_role("admin").await.unwrap());
     for permission in [
         "articles.create",
+        "articles.update",
         "articles.submit",
         "articles.review",
         "articles.publish",

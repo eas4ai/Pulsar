@@ -20,7 +20,7 @@ const DEFAULT_ROLES: [&str; 5] = [
     MEMBER_ROLE,
 ];
 
-const ALL_PERMISSIONS: [&str; 16] = [
+const V2_PERMISSIONS: [&str; 16] = [
     "articles.create",
     "articles.submit",
     "articles.review",
@@ -39,6 +39,9 @@ const ALL_PERMISSIONS: [&str; 16] = [
     "settings.manage",
 ];
 
+// Existing first-party article admin CRUD predates V2 community submissions.
+const INTERNAL_ARTICLE_PERMISSIONS: [&str; 1] = ["articles.update"];
+
 const MODERATOR_PERMISSIONS: [&str; 4] = [
     "articles.review",
     "resources.review",
@@ -46,15 +49,15 @@ const MODERATOR_PERMISSIONS: [&str; 4] = [
     "moderation.decide",
 ];
 
-const AUTHOR_PERMISSIONS: [&str; 4] = [
+const AUTHOR_PERMISSIONS: [&str; 5] = [
     "articles.create",
+    "articles.update",
     "articles.submit",
     "articles.review",
     "articles.publish",
 ];
 
-const CONTRIBUTOR_PERMISSIONS: [&str; 5] = [
-    "articles.create",
+const CONTRIBUTOR_PERMISSIONS: [&str; 4] = [
     "articles.submit",
     "questions.create",
     "comments.create",
@@ -100,7 +103,12 @@ pub async fn seed_default_roles() -> Result<(), FrameworkError> {
         create_role(role).await?;
     }
 
-    for permission in ALL_PERMISSIONS {
+    for permission in V2_PERMISSIONS {
+        create_permission(permission).await?;
+        give_permission_to_role(ADMIN_ROLE, permission).await?;
+    }
+
+    for permission in INTERNAL_ARTICLE_PERMISSIONS {
         create_permission(permission).await?;
         give_permission_to_role(ADMIN_ROLE, permission).await?;
     }

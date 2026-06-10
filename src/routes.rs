@@ -75,11 +75,11 @@ routes! {
     get!("/admin/articles/{id}/edit", controllers::admin_articles::edit)
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
-        .middleware(PermissionMiddleware::<User>::new("articles.review")),
+        .middleware(PermissionMiddleware::<User>::new("articles.update")),
     put!("/admin/articles/{id}", controllers::admin_articles::update)
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
-        .middleware(PermissionMiddleware::<User>::new("articles.review")),
+        .middleware(PermissionMiddleware::<User>::new("articles.update")),
     post!("/admin/articles/{id}/publish", controllers::admin_articles::publish)
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())

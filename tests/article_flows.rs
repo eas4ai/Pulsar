@@ -162,6 +162,53 @@ async fn contributor_cannot_open_existing_article_edit_route() {
 }
 
 #[tokio::test]
+async fn contributor_cannot_open_article_admin_index_or_create_form() {
+    let mut harness = setup().await;
+    seed_default_roles().await.expect("seed roles");
+    let user = verified_user("Contributor Admin", "contributor-admin@pulsar.test").await;
+    user.assign_role("contributor")
+        .await
+        .expect("assign contributor");
+    let addr = harness.spawn_app().await;
+    let mut client = Client::new(addr);
+    login(&mut client, "contributor-admin@pulsar.test").await;
+
+    let index = client.get("/admin/articles").await;
+    assert_eq!(index.status, 403);
+
+    let create = client.get("/admin/articles/create").await;
+    assert_eq!(create.status, 403);
+}
+
+#[tokio::test]
+async fn contributor_cannot_store_admin_article() {
+    let mut harness = setup().await;
+    seed_default_roles().await.expect("seed roles");
+    let user = verified_user("Contributor Store", "contributor-store@pulsar.test").await;
+    user.assign_role("contributor")
+        .await
+        .expect("assign contributor");
+    let addr = harness.spawn_app().await;
+    let mut client = Client::new(addr);
+    login(&mut client, "contributor-store@pulsar.test").await;
+
+    let resp = client
+        .post_json(
+            "/admin/articles",
+            json!({
+                "title": "Contributor Store Denied",
+                "slug": "",
+                "category": "Engineering",
+                "tags": "rbac",
+                "status": "draft",
+                "body_markdown": "# Contributor Store Denied\n\nThis should not be first-party admin CRUD.",
+            }),
+        )
+        .await;
+    assert_eq!(resp.status, 403);
+}
+
+#[tokio::test]
 async fn contributor_cannot_update_existing_article() {
     let mut harness = setup().await;
     seed_default_roles().await.expect("seed roles");
@@ -184,6 +231,54 @@ async fn contributor_cannot_update_existing_article() {
                 "tags": "rbac",
                 "status": "draft",
                 "body_markdown": "# Contributor Update Denied\n\nThis should not be writable.",
+            }),
+        )
+        .await;
+    assert_eq!(resp.status, 403);
+}
+
+#[tokio::test]
+async fn moderator_cannot_open_existing_article_edit_route() {
+    let mut harness = setup().await;
+    seed_default_roles().await.expect("seed roles");
+    let article = seed_article("moderator-edit-denied", "draft").await;
+    let user = verified_user("Moderator Edit", "moderator-edit@pulsar.test").await;
+    user.assign_role("moderator")
+        .await
+        .expect("assign moderator");
+    let addr = harness.spawn_app().await;
+    let mut client = Client::new(addr);
+    login(&mut client, "moderator-edit@pulsar.test").await;
+
+    let resp = client
+        .get(&format!("/admin/articles/{}/edit", article.id))
+        .await;
+    assert_eq!(resp.status, 403);
+}
+
+#[tokio::test]
+async fn moderator_cannot_update_existing_article() {
+    let mut harness = setup().await;
+    seed_default_roles().await.expect("seed roles");
+    let article = seed_article("moderator-update-denied", "draft").await;
+    let user = verified_user("Moderator Update", "moderator-update@pulsar.test").await;
+    user.assign_role("moderator")
+        .await
+        .expect("assign moderator");
+    let addr = harness.spawn_app().await;
+    let mut client = Client::new(addr);
+    login(&mut client, "moderator-update@pulsar.test").await;
+
+    let resp = client
+        .put_json(
+            &format!("/admin/articles/{}", article.id),
+            json!({
+                "title": "Moderator Update Denied",
+                "slug": "moderator-update-denied",
+                "category": "Engineering",
+                "tags": "rbac",
+                "status": "draft",
+                "body_markdown": "# Moderator Update Denied\n\nThis should stay outside moderation review.",
             }),
         )
         .await;
