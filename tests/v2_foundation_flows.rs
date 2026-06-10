@@ -360,6 +360,169 @@ mod v2_foundation_flows {
     }
 
     #[tokio::test]
+    async fn profile_update_rejects_unsafe_public_urls() {
+        let mut harness = setup().await;
+        let email = "unsafe-urls@pulsar.test";
+        let user = verified_user("Unsafe URLs", email).await;
+        Profile::ensure_for_user(&user)
+            .await
+            .expect("ensure current profile");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, email).await;
+
+        let resp = client
+            .patch_json(
+                "/profile",
+                json!({
+                    "name": "Unsafe URLs",
+                    "email": email,
+                    "display_name": "Unsafe URLs",
+                    "handle": "unsafe-urls",
+                    "website_url": "javascript:alert(1)",
+                    "github_url": "data:text/html,<h1>x</h1>",
+                }),
+            )
+            .await;
+
+        assert_eq!(resp.status, 422, "unsafe public URLs should be rejected");
+        assert!(
+            resp.body
+                .contains("Website URL must start with http:// or https://.")
+                && resp
+                    .body
+                    .contains("GitHub URL must start with http:// or https://."),
+            "validation response should explain public URL requirements: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn profile_update_rejects_reserved_generated_handles() {
+        let mut harness = setup().await;
+        let email = "reserved-handle@pulsar.test";
+        let user = verified_user("Reserved Handle", email).await;
+        Profile::ensure_for_user(&user)
+            .await
+            .expect("ensure current profile");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, email).await;
+
+        let resp = client
+            .patch_json(
+                "/profile",
+                json!({
+                    "name": "Reserved Handle",
+                    "email": email,
+                    "display_name": "Reserved Handle",
+                    "handle": "user-123",
+                }),
+            )
+            .await;
+
+        assert_eq!(
+            resp.status, 422,
+            "reserved generated handle should be rejected"
+        );
+        assert!(
+            resp.body
+                .contains("Handles matching user-{number} are reserved."),
+            "validation response should explain reserved handles: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn profile_update_rejects_whitespace_required_values() {
+        let mut harness = setup().await;
+        let email = "whitespace-profile@pulsar.test";
+        let user = verified_user("Whitespace Profile", email).await;
+        Profile::ensure_for_user(&user)
+            .await
+            .expect("ensure current profile");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, email).await;
+
+        let resp = client
+            .patch_json(
+                "/profile",
+                json!({
+                    "name": "   ",
+                    "email": email,
+                    "display_name": "   ",
+                    "handle": "   ",
+                }),
+            )
+            .await;
+
+        assert_eq!(
+            resp.status, 422,
+            "whitespace required values should be rejected"
+        );
+        assert!(
+            resp.body.contains("Name is required.")
+                && resp.body.contains("Display name is required.")
+                && resp.body.contains("Handle is required."),
+            "validation response should mention all whitespace-only fields: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn profile_update_enforces_database_backed_lengths() {
+        let mut harness = setup().await;
+        let email = "length-profile@pulsar.test";
+        let user = verified_user("Length Profile", email).await;
+        Profile::ensure_for_user(&user)
+            .await
+            .expect("ensure current profile");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, email).await;
+
+        let long_url = format!("https://example.com/{}", "a".repeat(481));
+        let resp = client
+            .patch_json(
+                "/profile",
+                json!({
+                    "name": "N".repeat(121),
+                    "email": email,
+                    "display_name": "D".repeat(121),
+                    "handle": "h".repeat(65),
+                    "avatar_url": long_url,
+                    "website_url": format!("https://example.com/{}", "w".repeat(481)),
+                    "github_url": format!("https://github.com/{}", "g".repeat(482)),
+                    "location": "L".repeat(121),
+                    "timezone": "T".repeat(81),
+                }),
+            )
+            .await;
+
+        assert_eq!(
+            resp.status, 422,
+            "overlong profile fields should be rejected"
+        );
+        for expected in [
+            "Name must be at most 120 characters.",
+            "Display name must be at most 120 characters.",
+            "Handle must be at most 64 characters.",
+            "Avatar URL must be at most 500 characters.",
+            "Website URL must be at most 500 characters.",
+            "GitHub URL must be at most 500 characters.",
+            "Location must be at most 120 characters.",
+            "Timezone must be at most 80 characters.",
+        ] {
+            assert!(
+                resp.body.contains(expected),
+                "validation response should contain `{expected}`: {}",
+                resp.body
+            );
+        }
+    }
+
+    #[tokio::test]
     async fn profile_update_saves_public_member_fields() {
         let mut harness = setup().await;
         let email = "profile-fields@pulsar.test";

@@ -23,15 +23,21 @@
 use serde::{Deserialize, Serialize};
 use suprnova::auth_flows::EmailVerification;
 use suprnova::{
-    Auth, CanResetPassword, FormRequest, FrameworkError, InertiaProps, Model, MustVerifyEmail,
+    Auth, CanResetPassword, DB, FormRequest, FrameworkError, InertiaProps, Model, MustVerifyEmail,
     Request, Response, Validate, ValidationErrors, handler, hashing, inertia_response, redirect,
 };
+use url::Url;
 
 use crate::controllers::{
     FormFailure, InertiaCtx, errors_json, inertia_config, inertia_form, validation_failure,
 };
-use crate::models::profile::Profile;
+use crate::models::profile::{DISPLAY_NAME_MAX_LENGTH, Profile};
 use crate::models::user::User;
+
+const HANDLE_MAX_LENGTH: usize = 64;
+const URL_MAX_LENGTH: usize = 500;
+const LOCATION_MAX_LENGTH: usize = 120;
+const TIMEZONE_MAX_LENGTH: usize = 80;
 
 // ============================================================================
 // Props
@@ -181,10 +187,80 @@ fn normalize_optional(value: &Option<String>) -> Option<String> {
         .map(str::to_string)
 }
 
+fn validate_required_string(
+    field: &str,
+    label: &str,
+    value: &str,
+    max_len: usize,
+    errors: &mut ValidationErrors,
+) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        errors.add(field, format!("{label} is required."));
+        return None;
+    }
+    if trimmed.chars().count() > max_len {
+        errors.add(
+            field,
+            format!("{label} must be at most {max_len} characters."),
+        );
+    }
+    Some(trimmed.to_string())
+}
+
+fn validate_optional_string(
+    field: &str,
+    label: &str,
+    value: &Option<String>,
+    max_len: usize,
+    errors: &mut ValidationErrors,
+) -> Option<String> {
+    let normalized = normalize_optional(value);
+    if let Some(value) = &normalized
+        && value.chars().count() > max_len
+    {
+        errors.add(
+            field,
+            format!("{label} must be at most {max_len} characters."),
+        );
+    }
+    normalized
+}
+
+fn validate_optional_url(
+    field: &str,
+    label: &str,
+    value: &Option<String>,
+    errors: &mut ValidationErrors,
+) -> Option<String> {
+    let normalized = validate_optional_string(field, label, value, URL_MAX_LENGTH, errors);
+    if let Some(value) = &normalized {
+        match Url::parse(value) {
+            Ok(url) if matches!(url.scheme(), "http" | "https") => {}
+            _ => errors.add(
+                field,
+                format!("{label} must start with http:// or https://."),
+            ),
+        }
+    }
+    normalized
+}
+
 fn is_slug_safe_handle(value: &str) -> bool {
     value
         .chars()
         .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')
+}
+
+fn is_reserved_generated_handle(value: &str) -> bool {
+    value
+        .strip_prefix("user-")
+        .is_some_and(|suffix| !suffix.is_empty() && suffix.chars().all(|ch| ch.is_ascii_digit()))
+}
+
+fn looks_like_profile_handle_unique_error(err: &FrameworkError) -> bool {
+    let message = err.to_string().to_ascii_lowercase();
+    message.contains("unique") && message.contains("handle")
 }
 
 fn public_profile_input(
@@ -194,11 +270,20 @@ fn public_profile_input(
 ) -> Option<PublicProfileInput> {
     let handle = match normalize_optional(&form.handle) {
         Some(handle) => {
+            if handle.chars().count() > HANDLE_MAX_LENGTH {
+                errors.add(
+                    "handle",
+                    format!("Handle must be at most {HANDLE_MAX_LENGTH} characters."),
+                );
+            }
             if !is_slug_safe_handle(&handle) {
                 errors.add(
                     "handle",
                     "Handle may only contain lowercase letters, numbers, and hyphens.",
                 );
+            }
+            if is_reserved_generated_handle(&handle) {
+                errors.add("handle", "Handles matching user-{number} are reserved.");
             }
             Some(handle)
         }
@@ -208,16 +293,47 @@ fn public_profile_input(
         }
     };
 
-    handle.map(|handle| PublicProfileInput {
-        handle,
-        display_name: normalize_optional(&form.display_name).unwrap_or_else(|| name.to_string()),
-        bio: normalize_optional(&form.bio),
-        avatar_url: normalize_optional(&form.avatar_url),
-        website_url: normalize_optional(&form.website_url),
-        github_url: normalize_optional(&form.github_url),
-        location: normalize_optional(&form.location),
-        timezone: normalize_optional(&form.timezone),
-    })
+    let display_name = match &form.display_name {
+        Some(display_name) => validate_required_string(
+            "display_name",
+            "Display name",
+            display_name,
+            DISPLAY_NAME_MAX_LENGTH,
+            errors,
+        ),
+        None => Some(name.to_string()),
+    };
+
+    match (handle, display_name) {
+        (Some(handle), Some(display_name)) => Some(PublicProfileInput {
+            handle,
+            display_name,
+            bio: normalize_optional(&form.bio),
+            avatar_url: validate_optional_url("avatar_url", "Avatar URL", &form.avatar_url, errors),
+            website_url: validate_optional_url(
+                "website_url",
+                "Website URL",
+                &form.website_url,
+                errors,
+            ),
+            github_url: validate_optional_url("github_url", "GitHub URL", &form.github_url, errors),
+            location: validate_optional_string(
+                "location",
+                "Location",
+                &form.location,
+                LOCATION_MAX_LENGTH,
+                errors,
+            ),
+            timezone: validate_optional_string(
+                "timezone",
+                "Timezone",
+                &form.timezone,
+                TIMEZONE_MAX_LENGTH,
+                errors,
+            ),
+        }),
+        _ => None,
+    }
 }
 
 // ============================================================================
@@ -262,9 +378,16 @@ pub async fn update(req: Request) -> Response {
     let mut user = current_user().await?;
     let mut profile = Profile::ensure_for_user(&user).await?;
     let email_changed = user.email != form.email;
-    let name = form.name.trim().to_string();
     let mut errors = ValidationErrors::new();
-    let profile_input = public_profile_input(&form, &name, &mut errors);
+    let name = validate_required_string(
+        "name",
+        "Name",
+        &form.name,
+        DISPLAY_NAME_MAX_LENGTH,
+        &mut errors,
+    );
+    let profile_input =
+        public_profile_input(&form, name.as_deref().unwrap_or_default(), &mut errors);
 
     // Guard the `users.email` unique constraint: if the new address belongs to
     // a *different* account, surface the error on `email` rather than letting
@@ -288,6 +411,7 @@ pub async fn update(req: Request) -> Response {
         return render_profile(&ctx, errors).await;
     }
 
+    let name = name.expect("validated name exists");
     let profile_input = profile_input.expect("validated profile input exists");
 
     user.name = name;
@@ -305,7 +429,25 @@ pub async fn update(req: Request) -> Response {
     profile.github_url = profile_input.github_url;
     profile.location = profile_input.location;
     profile.timezone = profile_input.timezone;
-    Model::save(&profile).await?;
+
+    let saved_user = match DB::transaction(move |_tx| {
+        Box::pin(async move {
+            Model::save(&user).await?;
+            Model::save(&profile).await?;
+            Ok::<User, FrameworkError>(user)
+        })
+    })
+    .await
+    {
+        Ok(user) => user,
+        Err(err) if looks_like_profile_handle_unique_error(&err) => {
+            let mut errors = ValidationErrors::new();
+            errors.add("handle", "This handle is already taken.");
+            return render_profile(&ctx, errors).await;
+        }
+        Err(err) => return Err(err.into()),
+    };
+    let user = saved_user;
 
     if email_changed {
         let base = format!("{}/verify-email/verify", crate::controllers::app_url());
