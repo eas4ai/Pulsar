@@ -39,6 +39,10 @@ pub struct Profile {
 pub use profile::{ActiveModel, Column, Entity};
 
 impl Profile {
+    pub async fn find_by_slug(slug: &str) -> Result<Option<Self>, FrameworkError> {
+        Self::find_by_handle(slug).await
+    }
+
     pub async fn find_by_handle(handle: &str) -> Result<Option<Self>, FrameworkError> {
         <Self as Model>::query()
             .filter("handle", handle)

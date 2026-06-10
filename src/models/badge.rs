@@ -29,6 +29,10 @@ pub struct Badge {
 pub use badge::{ActiveModel, Column, Entity};
 
 impl Badge {
+    pub async fn find_by_slug(slug: &str) -> Result<Option<Self>, FrameworkError> {
+        Self::find_by_key(slug).await
+    }
+
     pub async fn find_by_key(key: &str) -> Result<Option<Self>, FrameworkError> {
         <Self as Model>::query().filter("key", key).first().await
     }

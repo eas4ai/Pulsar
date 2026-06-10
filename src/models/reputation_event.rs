@@ -1,7 +1,8 @@
 //! Reputation event model.
 
 use chrono::{DateTime, Utc};
-use suprnova::model;
+use suprnova::eloquent::{Direction, Model};
+use suprnova::{FrameworkError, model};
 
 #[model(
     table = "reputation_events",
@@ -28,3 +29,14 @@ pub struct ReputationEvent {
 }
 
 pub use reputation_event::{ActiveModel, Column, Entity};
+
+impl ReputationEvent {
+    pub async fn for_user(user_id: i64) -> Result<Vec<Self>, FrameworkError> {
+        Ok(<Self as Model>::query()
+            .filter("user_id", user_id)
+            .order_by("id", Direction::Desc)
+            .get()
+            .await?
+            .into_vec())
+    }
+}
