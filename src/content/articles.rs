@@ -1,6 +1,7 @@
 //! Article Markdown rendering and metadata helpers.
 
-use suprnova::content::{MarkdownRenderer, slugify_heading};
+use crate::content::rendering::{first_heading_title, render_content};
+use suprnova::content::slugify_heading;
 use suprnova::{FrameworkError, serde_json};
 
 #[derive(Clone, Debug)]
@@ -20,16 +21,9 @@ pub fn render_article_content(
     slug: &str,
     markdown: &str,
 ) -> Result<RenderedArticleContent, FrameworkError> {
-    let rendered = MarkdownRenderer::default()
-        .render(markdown)
-        .map_err(|err| FrameworkError::internal(err.to_string()))?;
-    let heading_title = rendered
-        .headings
-        .iter()
-        .find(|heading| heading.level == 1)
-        .map(|heading| heading.title.trim())
-        .filter(|title| !title.is_empty());
-    let derived_title = heading_title.unwrap_or_else(|| title.trim());
+    let rendered = render_content(markdown)?;
+    let heading_title = first_heading_title(&rendered).map(str::to_owned);
+    let derived_title = heading_title.as_deref().unwrap_or_else(|| title.trim());
     let title = if derived_title.is_empty() {
         "Untitled Article".to_string()
     } else {
@@ -42,11 +36,7 @@ pub fn render_article_content(
         slugify_heading(slug)
     };
 
-    let has_code = markdown.contains("```") || rendered.html.contains("<pre");
-    let has_math = markdown.contains('$')
-        || rendered.html.contains("data-math-style")
-        || rendered.html.contains("language-math");
-    let excerpt = article_excerpt(&rendered.excerpt, heading_title);
+    let excerpt = article_excerpt(&rendered.excerpt, heading_title.as_deref());
 
     Ok(RenderedArticleContent {
         title,
@@ -55,8 +45,8 @@ pub fn render_article_content(
         excerpt: excerpt.clone(),
         description: excerpt,
         plain_text: rendered.plain_text,
-        has_code,
-        has_math,
+        has_code: rendered.has_code,
+        has_math: rendered.has_math,
     })
 }
 

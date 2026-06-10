@@ -2,3 +2,4 @@
 
 pub mod articles;
 pub mod docs;
+pub mod rendering;
