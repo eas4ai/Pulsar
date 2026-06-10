@@ -11,6 +11,7 @@ pub mod members;
 pub mod moderation;
 pub mod password_reset;
 pub mod profile;
+pub mod taxonomy;
 pub mod verify_email;
 
 use suprnova::{

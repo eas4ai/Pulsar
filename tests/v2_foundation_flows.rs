@@ -896,6 +896,135 @@ mod v2_foundation_flows {
     }
 
     #[tokio::test]
+    async fn member_cannot_create_admin_category() {
+        let mut harness = setup().await;
+        seed_default_roles().await.expect("seed roles");
+        let user = verified_user("Taxonomy Writer", "taxonomy-writer@pulsar.test").await;
+        user.assign_role("member").await.expect("assign member");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-writer@pulsar.test").await;
+
+        let resp = client
+            .post_json(
+                "/admin/categories",
+                json!({
+                    "name": "Forbidden Category",
+                    "slug": "forbidden-category",
+                    "description": "Members cannot manage taxonomy.",
+                    "sort_order": 5,
+                    "is_visible": true,
+                }),
+            )
+            .await;
+
+        assert_eq!(resp.status, 403);
+        assert!(
+            Category::find_by_slug("forbidden-category")
+                .await
+                .expect("lookup forbidden category")
+                .is_none(),
+            "denied taxonomy writes must not create a category"
+        );
+    }
+
+    #[tokio::test]
+    async fn admin_can_create_taxonomy_category() {
+        let mut harness = setup().await;
+        seed_default_roles().await.expect("seed roles");
+        let user = verified_user("Taxonomy Admin", "taxonomy-admin@pulsar.test").await;
+        user.assign_role("admin").await.expect("assign admin");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-admin@pulsar.test").await;
+
+        let resp = client
+            .post_json(
+                "/admin/categories",
+                json!({
+                    "name": "Programming",
+                    "slug": "programming",
+                    "description": "Languages, tooling, and software practice.",
+                    "sort_order": 10,
+                    "is_visible": true,
+                }),
+            )
+            .await;
+
+        assert_eq!(
+            resp.status, 302,
+            "admin category creation should redirect: {}",
+            resp.body
+        );
+        assert_eq!(resp.location(), "/admin/taxonomy");
+
+        let category = Category::find_by_slug("programming")
+            .await
+            .expect("lookup created category")
+            .expect("created category exists");
+        assert_eq!(category.name, "Programming");
+        assert_eq!(
+            category.description.as_deref(),
+            Some("Languages, tooling, and software practice.")
+        );
+        assert_eq!(category.sort_order, 10);
+        assert!(category.is_visible);
+    }
+
+    #[tokio::test]
+    async fn public_topics_show_visible_topics_only() {
+        let mut harness = setup().await;
+        <Topic as Model>::create(attrs! {
+            name: "Rust Programming",
+            slug: "rust-programming",
+            description: "Ownership, async systems, and practical Rust.",
+            sort_order: 1,
+            is_visible: true,
+        })
+        .await
+        .expect("create visible topic");
+        <Topic as Model>::create(attrs! {
+            name: "Private Planning",
+            slug: "private-planning",
+            description: "Hidden taxonomy work.",
+            sort_order: 2,
+            is_visible: false,
+        })
+        .await
+        .expect("create hidden topic");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+
+        let index = client.get("/topics").await;
+        assert_eq!(
+            index.status, 200,
+            "topics index should render: {}",
+            index.body
+        );
+        assert!(
+            index.body.contains("Rust Programming") && !index.body.contains("Private Planning"),
+            "topics index should include visible topics only: {}",
+            index.body
+        );
+
+        let visible = client.get("/topics/rust-programming").await;
+        assert_eq!(
+            visible.status, 200,
+            "visible topic detail should render: {}",
+            visible.body
+        );
+        assert!(
+            visible.body.contains("Rust Programming")
+                && visible.body.contains("contribution_counts"),
+            "visible topic detail should expose empty contribution counts: {}",
+            visible.body
+        );
+
+        let hidden = client.get("/topics/private-planning").await;
+        assert_eq!(hidden.status, 404, "hidden topic detail should 404");
+    }
+
+    #[tokio::test]
     async fn moderator_can_open_moderation_access_surface() {
         let mut harness = setup().await;
         seed_default_roles().await.expect("seed roles");

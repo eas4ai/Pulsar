@@ -187,6 +187,45 @@ export interface ContributionCounts {
   reputation: number
 }
 
+export interface TopicsIndexProps {
+  topics: TaxonomyListItem[]
+}
+
+export interface TopicShowProps {
+  topic: TaxonomyDetail
+}
+
+export interface CategoryShowProps {
+  category: TaxonomyDetail
+}
+
+export interface TagShowProps {
+  tag: TaxonomyDetail
+}
+
+export interface TaxonomyListItem {
+  name: string
+  slug: string
+  description: string | null
+  contribution_counts: TaxonomyContributionCounts
+}
+
+export interface TaxonomyDetail extends TaxonomyListItem {
+  contributions: TaxonomyContributions
+}
+
+export interface TaxonomyContributionCounts {
+  articles: number
+  resources: number
+  questions: number
+}
+
+export interface TaxonomyContributions {
+  articles: string[]
+  resources: string[]
+  questions: string[]
+}
+
 export interface AdminArticlesIndexProps {
   articles: AdminArticleRow[]
 }
@@ -218,4 +257,26 @@ export interface ArticleFormState {
   body_html: string
   has_code: boolean
   has_math: boolean
+}
+
+export interface AdminTaxonomyProps {
+  categories: AdminTaxonomyTermRow[]
+  topics: AdminTaxonomyTermRow[]
+  tags: AdminTagRow[]
+  errors: Record<string, string[]>
+}
+
+export interface AdminTaxonomyTermRow {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  sort_order: number
+  is_visible: boolean
+}
+
+export interface AdminTagRow {
+  id: number
+  name: string
+  slug: string
 }

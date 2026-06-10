@@ -16,6 +16,10 @@ routes! {
     get!("/feed.xml", controllers::feed::rss),
     get!("/members", controllers::members::index),
     get!("/members/{handle}", controllers::members::show),
+    get!("/topics", controllers::taxonomy::topics_index),
+    get!("/topics/{slug}", controllers::taxonomy::topic_show),
+    get!("/tags/{slug}", controllers::taxonomy::tag_show),
+    get!("/categories/{slug}", controllers::taxonomy::category_show),
 
     // The verification-token consume endpoint is self-contained: the token in
     // the query string is the proof, so no session is needed. Keep it public
@@ -87,6 +91,30 @@ routes! {
         .middleware(middleware::authenticate::verified())
         .middleware(PermissionMiddleware::<User>::new("articles.publish")),
     get!("/admin/taxonomy", controllers::admin_taxonomy::index)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
+    post!("/admin/categories", controllers::admin_taxonomy::store_category)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
+    put!("/admin/categories/{id}", controllers::admin_taxonomy::update_category)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
+    post!("/admin/topics", controllers::admin_taxonomy::store_topic)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
+    put!("/admin/topics/{id}", controllers::admin_taxonomy::update_topic)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
+    post!("/admin/tags", controllers::admin_taxonomy::store_tag)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
+    put!("/admin/tags/{id}", controllers::admin_taxonomy::update_tag)
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
         .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
