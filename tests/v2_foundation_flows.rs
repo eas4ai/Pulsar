@@ -11,8 +11,11 @@ mod v2_foundation_flows {
 
     use super::common::{Client, setup};
     use pulsar::models::badge::Badge;
+    use pulsar::models::category::Category;
     use pulsar::models::profile::Profile;
     use pulsar::models::reputation_event::ReputationEvent;
+    use pulsar::models::tag::Tag;
+    use pulsar::models::topic::Topic;
     use pulsar::models::user::User;
 
     #[tokio::test]
@@ -54,6 +57,49 @@ mod v2_foundation_flows {
     }
 
     #[tokio::test]
+    async fn registration_rejects_names_longer_than_profile_display_name() {
+        let mut harness = setup().await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        let email = "too-long-name@pulsar.test";
+        let long_name = "A".repeat(121);
+
+        let resp = client.get("/register").await;
+        assert_eq!(resp.status, 200, "GET /register must render: {}", resp.body);
+
+        let _mail = Mail::fake();
+        let resp = client
+            .post_json(
+                "/register",
+                json!({
+                    "name": long_name,
+                    "email": email,
+                    "password": "supersecret",
+                    "password_confirmation": "supersecret",
+                }),
+            )
+            .await;
+
+        assert_eq!(
+            resp.status, 422,
+            "too-long name should be rejected before user creation: {}",
+            resp.body
+        );
+        assert!(
+            resp.body.contains("Name must be at most 120 characters"),
+            "validation response should explain the name limit: {}",
+            resp.body
+        );
+        assert!(
+            User::find_by_email(email)
+                .await
+                .expect("lookup rejected user")
+                .is_none(),
+            "a rejected registration must not create the user"
+        );
+    }
+
+    #[tokio::test]
     async fn profile_find_by_slug_uses_handle() {
         let _harness = setup().await;
         let user = User::create("Slug User", "profile-slug@pulsar.test", "supersecret")
@@ -88,6 +134,58 @@ mod v2_foundation_flows {
             .expect("badge slug resolves by key");
 
         assert_eq!(found.id, badge.id);
+    }
+
+    #[tokio::test]
+    async fn taxonomy_models_find_by_slug() {
+        let _harness = setup().await;
+        let category = <Category as Model>::create(attrs! {
+            name: "Programming",
+            slug: "programming",
+            sort_order: 0,
+            is_visible: true,
+        })
+        .await
+        .expect("create category");
+        let topic = <Topic as Model>::create(attrs! {
+            name: "Rust",
+            slug: "rust",
+            sort_order: 0,
+            is_visible: true,
+        })
+        .await
+        .expect("create topic");
+        let tag = <Tag as Model>::create(attrs! {
+            name: "Async",
+            slug: "async",
+        })
+        .await
+        .expect("create tag");
+
+        assert_eq!(
+            Category::find_by_slug("programming")
+                .await
+                .expect("lookup category")
+                .expect("category exists")
+                .id,
+            category.id
+        );
+        assert_eq!(
+            Topic::find_by_slug("rust")
+                .await
+                .expect("lookup topic")
+                .expect("topic exists")
+                .id,
+            topic.id
+        );
+        assert_eq!(
+            Tag::find_by_slug("async")
+                .await
+                .expect("lookup tag")
+                .expect("tag exists")
+                .id,
+            tag.id
+        );
     }
 
     #[tokio::test]

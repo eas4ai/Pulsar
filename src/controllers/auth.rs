@@ -19,7 +19,7 @@ use suprnova::{
 use crate::controllers::{
     FormFailure, InertiaCtx, errors_json, inertia_config, inertia_form, validation_failure,
 };
-use crate::models::profile::Profile;
+use crate::models::profile::{DISPLAY_NAME_MAX_LENGTH, Profile};
 use crate::models::user::User;
 
 // ============================================================================
@@ -121,9 +121,20 @@ impl FormRequest for RegisterRequest {
     /// match. Runs after the per-field rules pass, so we know each
     /// individual value is well-formed before comparing them.
     fn after_validation(&self) -> Result<(), ValidationErrors> {
+        let mut errs = ValidationErrors::new();
+        let mut has_errors = false;
+
+        if self.name.chars().count() > DISPLAY_NAME_MAX_LENGTH {
+            errs.add("name", "Name must be at most 120 characters.");
+            has_errors = true;
+        }
+
         if self.password != self.password_confirmation {
-            let mut errs = ValidationErrors::new();
             errs.add("password_confirmation", "Passwords do not match.");
+            has_errors = true;
+        }
+
+        if has_errors {
             return Err(errs);
         }
         Ok(())

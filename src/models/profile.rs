@@ -6,6 +6,8 @@ use suprnova::{FrameworkError, attrs, model};
 
 use crate::models::user::User;
 
+pub const DISPLAY_NAME_MAX_LENGTH: usize = 120;
+
 #[model(
     table = "profiles",
     fillable = [
@@ -62,12 +64,19 @@ impl Profile {
             return Ok(profile);
         }
 
-        <Self as Model>::create(attrs! {
+        match <Self as Model>::create(attrs! {
             user_id: user.id,
             handle: default_handle(user),
             display_name: user.name.clone(),
         })
         .await
+        {
+            Ok(profile) => Ok(profile),
+            Err(err) => match Self::find_by_user_id(user.id).await {
+                Ok(Some(profile)) => Ok(profile),
+                Ok(None) | Err(_) => Err(err),
+            },
+        }
     }
 }
 

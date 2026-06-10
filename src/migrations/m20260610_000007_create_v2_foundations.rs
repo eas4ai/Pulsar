@@ -284,6 +284,17 @@ impl MigrationTrait for Migration {
                     )
                     .to_owned(),
             )
+            .await?;
+
+        manager
+            .create_index(
+                Index::create()
+                    .name("idx_reputation_events_user_id_id")
+                    .table(ReputationEvents::Table)
+                    .col(ReputationEvents::UserId)
+                    .col(ReputationEvents::Id)
+                    .to_owned(),
+            )
             .await
     }
 
