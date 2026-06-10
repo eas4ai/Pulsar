@@ -155,6 +155,17 @@ pub async fn update_category(req: Request) -> Response {
 }
 
 #[handler]
+pub async fn destroy_category(req: Request) -> Response {
+    let id = id_param(&req)?;
+    let category = Category::find(id)
+        .await?
+        .ok_or_else(|| FrameworkError::not_found(format!("category `{id}`")))?;
+    Model::delete(category).await?;
+
+    Redirect::to("/admin/taxonomy").into()
+}
+
+#[handler]
 pub async fn store_topic(req: Request) -> Response {
     let ctx = InertiaCtx::of(&req);
     let form = match inertia_form::<TaxonomyTermFormRequest>(req).await {
@@ -220,6 +231,17 @@ pub async fn update_topic(req: Request) -> Response {
 }
 
 #[handler]
+pub async fn destroy_topic(req: Request) -> Response {
+    let id = id_param(&req)?;
+    let topic = Topic::find(id)
+        .await?
+        .ok_or_else(|| FrameworkError::not_found(format!("topic `{id}`")))?;
+    Model::delete(topic).await?;
+
+    Redirect::to("/admin/taxonomy").into()
+}
+
+#[handler]
 pub async fn store_tag(req: Request) -> Response {
     let ctx = InertiaCtx::of(&req);
     let form = match inertia_form::<TagFormRequest>(req).await {
@@ -274,6 +296,17 @@ pub async fn update_tag(req: Request) -> Response {
         }
         Err(err) => return Err(err.into()),
     }
+
+    Redirect::to("/admin/taxonomy").into()
+}
+
+#[handler]
+pub async fn destroy_tag(req: Request) -> Response {
+    let id = id_param(&req)?;
+    let tag = Tag::find(id)
+        .await?
+        .ok_or_else(|| FrameworkError::not_found(format!("tag `{id}`")))?;
+    Model::delete(tag).await?;
 
     Redirect::to("/admin/taxonomy").into()
 }

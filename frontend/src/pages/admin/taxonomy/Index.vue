@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useForm } from '@inertiajs/vue3'
+import { router, useForm } from '@inertiajs/vue3'
 import type {
   AdminTagRow,
   AdminTaxonomyProps,
@@ -115,6 +115,48 @@ function submitTag() {
     tagForm.post('/admin/tags', options)
   }
 }
+
+function deleteCategory(category: AdminTaxonomyTermRow) {
+  if (!window.confirm(`Delete category "${category.name}"?`)) {
+    return
+  }
+  router.delete(`/admin/categories/${category.id}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      if (editingCategoryId.value === category.id) {
+        resetCategoryForm()
+      }
+    },
+  })
+}
+
+function deleteTopic(topic: AdminTaxonomyTermRow) {
+  if (!window.confirm(`Delete topic "${topic.name}"?`)) {
+    return
+  }
+  router.delete(`/admin/topics/${topic.id}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      if (editingTopicId.value === topic.id) {
+        resetTopicForm()
+      }
+    },
+  })
+}
+
+function deleteTag(tag: AdminTagRow) {
+  if (!window.confirm(`Delete tag "${tag.name}"?`)) {
+    return
+  }
+  router.delete(`/admin/tags/${tag.id}`, {
+    preserveScroll: true,
+    onSuccess: () => {
+      if (editingTagId.value === tag.id) {
+        resetTagForm()
+      }
+    },
+  })
+}
 </script>
 
 <template>
@@ -216,6 +258,13 @@ function submitTag() {
                       aria-label="Edit category"
                       @click="editCategory(category)"
                     />
+                    <v-btn
+                      icon="mdi-delete-outline"
+                      variant="text"
+                      color="error"
+                      aria-label="Delete category"
+                      @click="deleteCategory(category)"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -304,6 +353,13 @@ function submitTag() {
                       aria-label="Edit topic"
                       @click="editTopic(topic)"
                     />
+                    <v-btn
+                      icon="mdi-delete-outline"
+                      variant="text"
+                      color="error"
+                      aria-label="Delete topic"
+                      @click="deleteTopic(topic)"
+                    />
                   </td>
                 </tr>
               </tbody>
@@ -354,6 +410,13 @@ function submitTag() {
                       variant="text"
                       aria-label="Edit tag"
                       @click="editTag(tag)"
+                    />
+                    <v-btn
+                      icon="mdi-delete-outline"
+                      variant="text"
+                      color="error"
+                      aria-label="Delete tag"
+                      @click="deleteTag(tag)"
                     />
                   </td>
                 </tr>

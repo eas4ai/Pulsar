@@ -936,6 +936,42 @@ mod v2_foundation_flows {
     }
 
     #[tokio::test]
+    async fn taxonomy_member_cannot_delete_admin_category() {
+        let mut harness = setup().await;
+        seed_default_roles().await.expect("seed roles");
+        let user = verified_user(
+            "Taxonomy Delete Member",
+            "taxonomy-delete-member@pulsar.test",
+        )
+        .await;
+        user.assign_role("member").await.expect("assign member");
+        let category = <Category as Model>::create(attrs! {
+            name: "Protected Category",
+            slug: "protected-category",
+            sort_order: 0,
+            is_visible: true,
+        })
+        .await
+        .expect("create protected category");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-delete-member@pulsar.test").await;
+
+        let resp = client
+            .delete_json(&format!("/admin/categories/{}", category.id), json!({}))
+            .await;
+
+        assert_eq!(resp.status, 403);
+        assert!(
+            Category::find_by_slug("protected-category")
+                .await
+                .expect("lookup protected category")
+                .is_some(),
+            "denied taxonomy deletes must not remove the category"
+        );
+    }
+
+    #[tokio::test]
     async fn admin_can_create_taxonomy_category() {
         let mut harness = setup().await;
         verified_admin("Taxonomy Admin", "taxonomy-admin@pulsar.test").await;
@@ -1349,6 +1385,139 @@ mod v2_foundation_flows {
             .expect("lookup updated tag")
             .expect("updated tag exists");
         assert_eq!(tag.name, "New Tag");
+    }
+
+    #[tokio::test]
+    async fn taxonomy_admin_can_delete_category_topic_and_tag() {
+        let mut harness = setup().await;
+        verified_admin("Taxonomy Delete Admin", "taxonomy-delete@pulsar.test").await;
+        let category = <Category as Model>::create(attrs! {
+            name: "Delete Category",
+            slug: "delete-category",
+            description: "Visible category to delete.",
+            sort_order: 0,
+            is_visible: true,
+        })
+        .await
+        .expect("create category");
+        let topic = <Topic as Model>::create(attrs! {
+            name: "Delete Topic",
+            slug: "delete-topic",
+            description: "Visible topic to delete.",
+            sort_order: 0,
+            is_visible: true,
+        })
+        .await
+        .expect("create topic");
+        let tag = <Tag as Model>::create(attrs! {
+            name: "Delete Tag",
+            slug: "delete-tag",
+        })
+        .await
+        .expect("create tag");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-delete@pulsar.test").await;
+
+        assert_eq!(client.get("/categories/delete-category").await.status, 200);
+        assert_eq!(client.get("/topics/delete-topic").await.status, 200);
+        assert_eq!(client.get("/tags/delete-tag").await.status, 200);
+
+        let category_resp = client
+            .delete_json(&format!("/admin/categories/{}", category.id), json!({}))
+            .await;
+        assert_eq!(
+            category_resp.status, 302,
+            "category delete should redirect: {}",
+            category_resp.body
+        );
+        assert_eq!(category_resp.location(), "/admin/taxonomy");
+
+        let topic_resp = client
+            .delete_json(&format!("/admin/topics/{}", topic.id), json!({}))
+            .await;
+        assert_eq!(
+            topic_resp.status, 302,
+            "topic delete should redirect: {}",
+            topic_resp.body
+        );
+        assert_eq!(topic_resp.location(), "/admin/taxonomy");
+
+        let tag_resp = client
+            .delete_json(&format!("/admin/tags/{}", tag.id), json!({}))
+            .await;
+        assert_eq!(
+            tag_resp.status, 302,
+            "tag delete should redirect: {}",
+            tag_resp.body
+        );
+        assert_eq!(tag_resp.location(), "/admin/taxonomy");
+
+        assert!(
+            Category::find_by_slug("delete-category")
+                .await
+                .expect("lookup deleted category")
+                .is_none(),
+            "category delete should remove row"
+        );
+        assert!(
+            Topic::find_by_slug("delete-topic")
+                .await
+                .expect("lookup deleted topic")
+                .is_none(),
+            "topic delete should remove row"
+        );
+        assert!(
+            Tag::find_by_slug("delete-tag")
+                .await
+                .expect("lookup deleted tag")
+                .is_none(),
+            "tag delete should remove row"
+        );
+
+        assert_eq!(
+            client.get("/categories/delete-category").await.status,
+            404,
+            "deleted category detail should no longer render"
+        );
+        assert_eq!(
+            client.get("/topics/delete-topic").await.status,
+            404,
+            "deleted topic detail should no longer render"
+        );
+        assert_eq!(
+            client.get("/tags/delete-tag").await.status,
+            404,
+            "deleted tag detail should no longer render"
+        );
+    }
+
+    #[tokio::test]
+    async fn taxonomy_delete_missing_row_returns_not_found() {
+        let mut harness = setup().await;
+        verified_admin(
+            "Taxonomy Missing Delete Admin",
+            "taxonomy-missing-delete@pulsar.test",
+        )
+        .await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-missing-delete@pulsar.test").await;
+
+        let resp = client
+            .delete_json("/admin/categories/987654321", json!({}))
+            .await;
+
+        assert_eq!(
+            resp.status, 404,
+            "missing taxonomy delete should return a controlled not found response: {}",
+            resp.body
+        );
+        assert!(
+            resp.body.contains("category `987654321`"),
+            "missing taxonomy delete should be handled by the taxonomy controller: {}",
+            resp.body
+        );
     }
 
     #[tokio::test]

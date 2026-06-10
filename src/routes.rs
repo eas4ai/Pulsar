@@ -102,6 +102,10 @@ routes! {
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
         .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
+    delete!("/admin/categories/{id}", controllers::admin_taxonomy::destroy_category)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
     post!("/admin/topics", controllers::admin_taxonomy::store_topic)
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
@@ -110,11 +114,19 @@ routes! {
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
         .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
+    delete!("/admin/topics/{id}", controllers::admin_taxonomy::destroy_topic)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
     post!("/admin/tags", controllers::admin_taxonomy::store_tag)
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
         .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
     put!("/admin/tags/{id}", controllers::admin_taxonomy::update_tag)
+        .middleware(middleware::authenticate::auth())
+        .middleware(middleware::authenticate::verified())
+        .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
+    delete!("/admin/tags/{id}", controllers::admin_taxonomy::destroy_tag)
         .middleware(middleware::authenticate::auth())
         .middleware(middleware::authenticate::verified())
         .middleware(PermissionMiddleware::<User>::new("taxonomy.manage")),
