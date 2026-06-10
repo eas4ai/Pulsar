@@ -24,6 +24,7 @@ defineProps<ProfileProps>()
         :name="name"
         :email="email"
         :email-verified="email_verified"
+        :profile="profile"
       />
       <PasswordForm />
       <DeleteAccountDialog />

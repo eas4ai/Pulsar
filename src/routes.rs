@@ -14,6 +14,8 @@ routes! {
     get!("/blog", controllers::articles::index),
     get!("/blog/{slug}", controllers::articles::show),
     get!("/feed.xml", controllers::feed::rss),
+    get!("/members", controllers::members::index),
+    get!("/members/{handle}", controllers::members::show),
 
     // The verification-token consume endpoint is self-contained: the token in
     // the query string is the proof, so no session is needed. Keep it public

@@ -7,6 +7,7 @@ pub mod dashboard;
 pub mod docs;
 pub mod feed;
 pub mod home;
+pub mod members;
 pub mod moderation;
 pub mod password_reset;
 pub mod profile;

@@ -20,7 +20,7 @@
 //! prop the client merges into `form.errors`, while non-Inertia clients get
 //! the Laravel-style 422 `{ message, errors }` envelope.
 
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use suprnova::auth_flows::EmailVerification;
 use suprnova::{
     Auth, CanResetPassword, FormRequest, FrameworkError, InertiaProps, Model, MustVerifyEmail,
@@ -42,6 +42,19 @@ pub struct ProfileProps {
     pub name: String,
     pub email: String,
     pub email_verified: bool,
+    pub profile: ProfileFormProps,
+}
+
+#[derive(Serialize)]
+pub struct ProfileFormProps {
+    pub handle: String,
+    pub display_name: String,
+    pub bio: Option<String>,
+    pub avatar_url: Option<String>,
+    pub website_url: Option<String>,
+    pub github_url: Option<String>,
+    pub location: Option<String>,
+    pub timezone: Option<String>,
 }
 
 // ============================================================================
@@ -54,6 +67,14 @@ pub struct UpdateProfileRequest {
     pub name: String,
     #[validate(email(message = "Enter a valid email address."))]
     pub email: String,
+    pub display_name: Option<String>,
+    pub handle: Option<String>,
+    pub bio: Option<String>,
+    pub avatar_url: Option<String>,
+    pub website_url: Option<String>,
+    pub github_url: Option<String>,
+    pub location: Option<String>,
+    pub timezone: Option<String>,
 }
 
 impl FormRequest for UpdateProfileRequest {}
@@ -110,6 +131,7 @@ async fn current_user() -> Result<User, FrameworkError> {
 async fn render_profile(ctx: &InertiaCtx, errors: ValidationErrors) -> Response {
     if ctx.wants_inertia() {
         let user = current_user().await?;
+        let profile = Profile::ensure_for_user(&user).await?;
         inertia_response!(
             ctx,
             "Profile",
@@ -117,6 +139,7 @@ async fn render_profile(ctx: &InertiaCtx, errors: ValidationErrors) -> Response 
                 "name": user.name,
                 "email": user.email,
                 "email_verified": user.is_email_verified(),
+                "profile": profile_form_props(profile),
                 "errors": errors_json(&errors),
             },
             inertia_config()
@@ -124,6 +147,77 @@ async fn render_profile(ctx: &InertiaCtx, errors: ValidationErrors) -> Response 
     } else {
         Err(validation_failure(errors))
     }
+}
+
+struct PublicProfileInput {
+    handle: String,
+    display_name: String,
+    bio: Option<String>,
+    avatar_url: Option<String>,
+    website_url: Option<String>,
+    github_url: Option<String>,
+    location: Option<String>,
+    timezone: Option<String>,
+}
+
+fn profile_form_props(profile: Profile) -> ProfileFormProps {
+    ProfileFormProps {
+        handle: profile.handle,
+        display_name: profile.display_name,
+        bio: profile.bio,
+        avatar_url: profile.avatar_url,
+        website_url: profile.website_url,
+        github_url: profile.github_url,
+        location: profile.location,
+        timezone: profile.timezone,
+    }
+}
+
+fn normalize_optional(value: &Option<String>) -> Option<String> {
+    value
+        .as_deref()
+        .map(str::trim)
+        .filter(|value| !value.is_empty())
+        .map(str::to_string)
+}
+
+fn is_slug_safe_handle(value: &str) -> bool {
+    value
+        .chars()
+        .all(|ch| ch.is_ascii_lowercase() || ch.is_ascii_digit() || ch == '-')
+}
+
+fn public_profile_input(
+    form: &UpdateProfileRequest,
+    name: &str,
+    errors: &mut ValidationErrors,
+) -> Option<PublicProfileInput> {
+    let handle = match normalize_optional(&form.handle) {
+        Some(handle) => {
+            if !is_slug_safe_handle(&handle) {
+                errors.add(
+                    "handle",
+                    "Handle may only contain lowercase letters, numbers, and hyphens.",
+                );
+            }
+            Some(handle)
+        }
+        None => {
+            errors.add("handle", "Handle is required.");
+            None
+        }
+    };
+
+    handle.map(|handle| PublicProfileInput {
+        handle,
+        display_name: normalize_optional(&form.display_name).unwrap_or_else(|| name.to_string()),
+        bio: normalize_optional(&form.bio),
+        avatar_url: normalize_optional(&form.avatar_url),
+        website_url: normalize_optional(&form.website_url),
+        github_url: normalize_optional(&form.github_url),
+        location: normalize_optional(&form.location),
+        timezone: normalize_optional(&form.timezone),
+    })
 }
 
 // ============================================================================
@@ -134,6 +228,7 @@ async fn render_profile(ctx: &InertiaCtx, errors: ValidationErrors) -> Response 
 #[handler]
 pub async fn show(req: Request) -> Response {
     let user = current_user().await?;
+    let profile = Profile::ensure_for_user(&user).await?;
     inertia_response!(
         &req,
         "Profile",
@@ -141,6 +236,7 @@ pub async fn show(req: Request) -> Response {
             name: user.name.clone(),
             email: user.email.clone(),
             email_verified: user.is_email_verified(),
+            profile: profile_form_props(profile),
         },
         inertia_config()
     )
@@ -164,7 +260,11 @@ pub async fn update(req: Request) -> Response {
     };
 
     let mut user = current_user().await?;
+    let mut profile = Profile::ensure_for_user(&user).await?;
     let email_changed = user.email != form.email;
+    let name = form.name.trim().to_string();
+    let mut errors = ValidationErrors::new();
+    let profile_input = public_profile_input(&form, &name, &mut errors);
 
     // Guard the `users.email` unique constraint: if the new address belongs to
     // a *different* account, surface the error on `email` rather than letting
@@ -174,17 +274,38 @@ pub async fn update(req: Request) -> Response {
         && let Some(existing) = User::find_by_email(&form.email).await?
         && existing.id != user.id
     {
-        let mut errors = ValidationErrors::new();
         errors.add("email", "This email is already registered.");
+    }
+
+    if let Some(input) = &profile_input
+        && let Some(existing) = Profile::find_by_handle(&input.handle).await?
+        && existing.user_id != user.id
+    {
+        errors.add("handle", "This handle is already taken.");
+    }
+
+    if !errors.errors.is_empty() {
         return render_profile(&ctx, errors).await;
     }
 
-    user.name = form.name;
+    let profile_input = profile_input.expect("validated profile input exists");
+
+    user.name = name;
     user.email = form.email;
     if email_changed {
         user.set_email_verified_at(None);
     }
     Model::save(&user).await?;
+
+    profile.handle = profile_input.handle;
+    profile.display_name = profile_input.display_name;
+    profile.bio = profile_input.bio;
+    profile.avatar_url = profile_input.avatar_url;
+    profile.website_url = profile_input.website_url;
+    profile.github_url = profile_input.github_url;
+    profile.location = profile_input.location;
+    profile.timezone = profile_input.timezone;
+    Model::save(&profile).await?;
 
     if email_changed {
         let base = format!("{}/verify-email/verify", crate::controllers::app_url());

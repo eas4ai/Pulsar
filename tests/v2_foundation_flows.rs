@@ -48,6 +48,16 @@ mod v2_foundation_flows {
         assert_eq!(resp.location(), "/dashboard");
     }
 
+    async fn public_profile(user: &User, handle: &str, display_name: &str) -> Profile {
+        let mut profile = Profile::ensure_for_user(user)
+            .await
+            .expect("ensure profile for public profile");
+        profile.handle = handle.to_string();
+        profile.display_name = display_name.to_string();
+        Model::save(&profile).await.expect("save public profile");
+        profile
+    }
+
     #[tokio::test]
     async fn profile_is_created_for_registered_users() {
         let mut harness = setup().await;
@@ -247,6 +257,241 @@ mod v2_foundation_flows {
             .expect("profile slug resolves by handle");
 
         assert_eq!(found.id, profile.id);
+    }
+
+    #[tokio::test]
+    async fn profile_update_requires_handle() {
+        let mut harness = setup().await;
+        let email = "handle-required@pulsar.test";
+        let user = verified_user("Handle Required", email).await;
+        Profile::ensure_for_user(&user)
+            .await
+            .expect("ensure current profile");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, email).await;
+
+        let resp = client
+            .patch_json(
+                "/profile",
+                json!({
+                    "name": "Handle Required",
+                    "email": email,
+                    "display_name": "Handle Required",
+                    "handle": "",
+                }),
+            )
+            .await;
+
+        assert_eq!(resp.status, 422, "blank handle should be rejected");
+        assert!(
+            resp.body.contains("Handle is required."),
+            "validation response should mention required handle: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn profile_update_requires_slug_safe_handle() {
+        let mut harness = setup().await;
+        let email = "handle-slug@pulsar.test";
+        let user = verified_user("Handle Slug", email).await;
+        Profile::ensure_for_user(&user)
+            .await
+            .expect("ensure current profile");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, email).await;
+
+        let resp = client
+            .patch_json(
+                "/profile",
+                json!({
+                    "name": "Handle Slug",
+                    "email": email,
+                    "display_name": "Handle Slug",
+                    "handle": "Bad Handle!",
+                }),
+            )
+            .await;
+
+        assert_eq!(resp.status, 422, "slug-unsafe handle should be rejected");
+        assert!(
+            resp.body
+                .contains("Handle may only contain lowercase letters, numbers, and hyphens."),
+            "validation response should explain slug-safe handles: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn profile_update_requires_unique_handle() {
+        let mut harness = setup().await;
+        let existing = verified_user("Existing Handle", "existing-handle@pulsar.test").await;
+        public_profile(&existing, "taken-handle", "Existing Handle").await;
+
+        let email = "new-handle-owner@pulsar.test";
+        let user = verified_user("New Handle Owner", email).await;
+        Profile::ensure_for_user(&user)
+            .await
+            .expect("ensure current profile");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, email).await;
+
+        let resp = client
+            .patch_json(
+                "/profile",
+                json!({
+                    "name": "New Handle Owner",
+                    "email": email,
+                    "display_name": "New Handle Owner",
+                    "handle": "taken-handle",
+                }),
+            )
+            .await;
+
+        assert_eq!(resp.status, 422, "duplicate handle should be rejected");
+        assert!(
+            resp.body.contains("This handle is already taken."),
+            "validation response should explain handle uniqueness: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn profile_update_saves_public_member_fields() {
+        let mut harness = setup().await;
+        let email = "profile-fields@pulsar.test";
+        let user = verified_user("Profile Fields", email).await;
+        Profile::ensure_for_user(&user)
+            .await
+            .expect("ensure current profile");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, email).await;
+
+        let resp = client
+            .patch_json(
+                "/profile",
+                json!({
+                    "name": "Grace Account",
+                    "email": email,
+                    "display_name": "Grace Hopper",
+                    "handle": "grace-hopper",
+                    "bio": "Compiler pioneer and naval officer.",
+                    "avatar_url": "https://cdn.pulsar.test/grace.png",
+                    "website_url": "https://grace.example",
+                    "github_url": "https://github.com/grace",
+                    "location": "Arlington, VA",
+                    "timezone": "America/New_York",
+                }),
+            )
+            .await;
+
+        assert_eq!(resp.status, 302, "profile field update: {}", resp.body);
+        assert_eq!(resp.location(), "/profile");
+
+        let updated = User::find_by_email(email)
+            .await
+            .expect("reload user")
+            .expect("updated user exists");
+        assert_eq!(updated.name, "Grace Account");
+
+        let profile = Profile::find_by_user_id(updated.id)
+            .await
+            .expect("reload profile")
+            .expect("profile exists");
+        assert_eq!(profile.handle, "grace-hopper");
+        assert_eq!(profile.display_name, "Grace Hopper");
+        assert_eq!(
+            profile.bio.as_deref(),
+            Some("Compiler pioneer and naval officer.")
+        );
+        assert_eq!(
+            profile.avatar_url.as_deref(),
+            Some("https://cdn.pulsar.test/grace.png")
+        );
+        assert_eq!(
+            profile.website_url.as_deref(),
+            Some("https://grace.example")
+        );
+        assert_eq!(
+            profile.github_url.as_deref(),
+            Some("https://github.com/grace")
+        );
+        assert_eq!(profile.location.as_deref(), Some("Arlington, VA"));
+        assert_eq!(profile.timezone.as_deref(), Some("America/New_York"));
+
+        let resp = client.get("/members/grace-hopper").await;
+        assert_eq!(
+            resp.status, 200,
+            "member profile should render: {}",
+            resp.body
+        );
+        assert!(
+            resp.body.contains("Grace Hopper"),
+            "public member page should include display name: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn members_index_lists_public_profiles() {
+        let mut harness = setup().await;
+        let ada = verified_user("Ada Account", "ada-members@pulsar.test").await;
+        public_profile(&ada, "ada-lovelace", "Ada Lovelace").await;
+        let alan = verified_user("Alan Account", "alan-members@pulsar.test").await;
+        public_profile(&alan, "alan-turing", "Alan Turing").await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+
+        let resp = client.get("/members").await;
+
+        assert_eq!(
+            resp.status, 200,
+            "members index should render: {}",
+            resp.body
+        );
+        assert!(
+            resp.body.contains("Ada Lovelace") && resp.body.contains("Alan Turing"),
+            "members index should include public profiles: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn member_profile_is_visible_by_handle() {
+        let mut harness = setup().await;
+        let user = verified_user("Visible Account", "visible-member@pulsar.test").await;
+        let mut profile = public_profile(&user, "visible-member", "Visible Member").await;
+        profile.bio = Some("Visible public biography.".to_string());
+        profile.website_url = Some("https://visible.example".to_string());
+        Model::save(&profile)
+            .await
+            .expect("save visible public profile fields");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+
+        let resp = client.get("/members/visible-member").await;
+
+        assert_eq!(
+            resp.status, 200,
+            "member profile should render: {}",
+            resp.body
+        );
+        assert!(
+            resp.body.contains("Visible Member")
+                && resp.body.contains("Visible public biography.")
+                && resp.body.contains("visible.example")
+                && resp.body.contains("contribution_counts")
+                && resp.body.contains("badges"),
+            "member profile should expose summary props: {}",
+            resp.body
+        );
+
+        let missing = client.get("/members/not-a-member").await;
+        assert_eq!(missing.status, 404, "unknown handles should 404");
     }
 
     #[tokio::test]

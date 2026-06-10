@@ -61,6 +61,18 @@ export interface ProfileProps {
   name: string
   email: string
   email_verified: boolean
+  profile: ProfileFormState
+}
+
+export interface ProfileFormState {
+  handle: string
+  display_name: string
+  bio: string | null
+  avatar_url: string | null
+  website_url: string | null
+  github_url: string | null
+  location: string | null
+  timezone: string | null
 }
 
 export interface ResetPasswordProps {
@@ -135,6 +147,44 @@ export interface ArticleSummary {
 
 export interface ArticleDetail extends ArticleSummary {
   body_html: string
+}
+
+export interface MembersIndexProps {
+  members: MemberSummary[]
+}
+
+export interface MemberShowProps {
+  member: MemberSummary
+}
+
+export interface MemberSummary {
+  handle: string
+  display_name: string
+  bio: string | null
+  avatar_url: string | null
+  links: MemberLinks
+  badges: MemberBadge[]
+  contribution_counts: ContributionCounts
+}
+
+export interface MemberLinks {
+  website_url: string | null
+  github_url: string | null
+  location: string | null
+  timezone: string | null
+}
+
+export interface MemberBadge {
+  key: string
+  name: string
+  icon: string | null
+}
+
+export interface ContributionCounts {
+  articles: number
+  resources: number
+  answers: number
+  reputation: number
 }
 
 export interface AdminArticlesIndexProps {

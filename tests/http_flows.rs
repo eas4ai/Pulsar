@@ -362,7 +362,12 @@ async fn profile_update_password_and_delete_over_http() {
     let resp = client
         .patch_json(
             "/profile",
-            json!({ "name": "Edsger Dijkstra", "email": "edsger.new@x.com" }),
+            json!({
+                "name": "Edsger Dijkstra",
+                "email": "edsger.new@x.com",
+                "display_name": "Edsger Dijkstra",
+                "handle": "edsger-dijkstra",
+            }),
         )
         .await;
     assert_eq!(resp.status, 302, "profile update: {}", resp.body);
