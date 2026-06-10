@@ -100,6 +100,108 @@ mod v2_foundation_flows {
     }
 
     #[tokio::test]
+    async fn account_delete_removes_registered_users_profile() {
+        let mut harness = setup().await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        let email = "delete-profile@pulsar.test";
+
+        let resp = client.get("/register").await;
+        assert_eq!(resp.status, 200, "GET /register must render: {}", resp.body);
+
+        let _mail = Mail::fake();
+        let resp = client
+            .post_json(
+                "/register",
+                json!({
+                    "name": "Delete Profile",
+                    "email": email,
+                    "password": "supersecret",
+                    "password_confirmation": "supersecret",
+                }),
+            )
+            .await;
+        assert_eq!(resp.status, 302, "register must redirect: {}", resp.body);
+
+        let user = User::find_by_email(email)
+            .await
+            .expect("lookup registered user")
+            .expect("registered user exists");
+        let user_id = user.id;
+        assert!(
+            Profile::find_by_user_id(user_id)
+                .await
+                .expect("lookup created profile")
+                .is_some(),
+            "registration creates a profile before deletion"
+        );
+
+        let resp = client
+            .delete_json("/profile", json!({ "password": "supersecret" }))
+            .await;
+        assert_eq!(resp.status, 302, "delete account redirects: {}", resp.body);
+        assert_eq!(resp.location(), "/");
+        assert!(
+            User::find_by_email(email)
+                .await
+                .expect("lookup deleted user")
+                .is_none(),
+            "account deletion removes the user"
+        );
+        assert!(
+            Profile::find_by_user_id(user_id)
+                .await
+                .expect("lookup deleted user's profile")
+                .is_none(),
+            "account deletion removes the profile"
+        );
+    }
+
+    #[tokio::test]
+    async fn failed_profile_creation_does_not_leave_registered_user() {
+        let mut harness = setup().await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        let email = "profile-failure@pulsar.test";
+
+        <Profile as Model>::create(attrs! {
+            user_id: 999_i64,
+            handle: "user-1",
+            display_name: "Handle Collision",
+        })
+        .await
+        .expect("create profile handle collision");
+
+        let resp = client.get("/register").await;
+        assert_eq!(resp.status, 200, "GET /register must render: {}", resp.body);
+
+        let _mail = Mail::fake();
+        let resp = client
+            .post_json(
+                "/register",
+                json!({
+                    "name": "Profile Failure",
+                    "email": email,
+                    "password": "supersecret",
+                    "password_confirmation": "supersecret",
+                }),
+            )
+            .await;
+
+        assert_ne!(
+            resp.status, 302,
+            "profile creation failure must not complete registration"
+        );
+        assert!(
+            User::find_by_email(email)
+                .await
+                .expect("lookup compensated user")
+                .is_none(),
+            "failed profile creation must remove the just-created user"
+        );
+    }
+
+    #[tokio::test]
     async fn profile_find_by_slug_uses_handle() {
         let _harness = setup().await;
         let user = User::create("Slug User", "profile-slug@pulsar.test", "supersecret")

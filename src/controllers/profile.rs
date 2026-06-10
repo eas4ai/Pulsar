@@ -30,6 +30,7 @@ use suprnova::{
 use crate::controllers::{
     FormFailure, InertiaCtx, errors_json, inertia_config, inertia_form, validation_failure,
 };
+use crate::models::profile::Profile;
 use crate::models::user::User;
 
 // ============================================================================
@@ -245,6 +246,10 @@ pub async fn destroy(req: Request) -> Response {
         let mut errors = ValidationErrors::new();
         errors.add("password", "The password is incorrect.");
         return render_profile(&ctx, errors).await;
+    }
+
+    if let Some(profile) = Profile::find_by_user_id(user.id).await? {
+        Model::delete(profile).await?;
     }
 
     Auth::logout().await?;

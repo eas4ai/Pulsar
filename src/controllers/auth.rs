@@ -12,8 +12,8 @@ use std::sync::Arc;
 
 use serde::Deserialize;
 use suprnova::{
-    Auth, Credentials, FormRequest, InertiaProps, Request, Response, Validate, ValidationErrors,
-    handler, inertia_response, redirect,
+    Auth, Credentials, FormRequest, InertiaProps, Model, Request, Response, Validate,
+    ValidationErrors, handler, inertia_response, redirect,
 };
 
 use crate::controllers::{
@@ -171,7 +171,18 @@ pub async fn register(req: Request) -> Response {
     }
 
     let user = User::create(&form.name, &form.email, &form.password).await?;
-    Profile::ensure_for_user(&user).await?;
+    if let Err(err) = Profile::ensure_for_user(&user).await {
+        let email = user.email.clone();
+        if let Err(delete_err) = Model::delete(user).await {
+            tracing::error!(
+                error = %delete_err,
+                email = %email,
+                "failed to compensate user after profile creation failure"
+            );
+            return Err(delete_err.into());
+        }
+        return Err(err.into());
+    }
     let user = Arc::new(user);
     // Log the freshly-created user into the session (fires the Login event).
     Auth::login(user.clone(), false).await?;
