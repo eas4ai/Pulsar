@@ -19,6 +19,7 @@ use suprnova::{
 use crate::controllers::{
     FormFailure, InertiaCtx, errors_json, inertia_config, inertia_form, validation_failure,
 };
+use crate::models::profile::Profile;
 use crate::models::user::User;
 
 // ============================================================================
@@ -159,6 +160,7 @@ pub async fn register(req: Request) -> Response {
     }
 
     let user = User::create(&form.name, &form.email, &form.password).await?;
+    Profile::ensure_for_user(&user).await?;
     let user = Arc::new(user);
     // Log the freshly-created user into the session (fires the Login event).
     Auth::login(user.clone(), false).await?;

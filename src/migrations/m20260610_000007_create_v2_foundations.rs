@@ -1,0 +1,390 @@
+use sea_orm_migration::prelude::*;
+
+#[derive(DeriveMigrationName)]
+pub struct Migration;
+
+#[async_trait::async_trait]
+impl MigrationTrait for Migration {
+    async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .create_table(
+                Table::create()
+                    .table(Profiles::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Profiles::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Profiles::UserId)
+                            .big_integer()
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Profiles::Handle)
+                            .string_len(64)
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Profiles::DisplayName)
+                            .string_len(120)
+                            .not_null(),
+                    )
+                    .col(ColumnDef::new(Profiles::Bio).text().null())
+                    .col(ColumnDef::new(Profiles::AvatarUrl).string_len(500).null())
+                    .col(ColumnDef::new(Profiles::WebsiteUrl).string_len(500).null())
+                    .col(ColumnDef::new(Profiles::GithubUrl).string_len(500).null())
+                    .col(ColumnDef::new(Profiles::Location).string_len(120).null())
+                    .col(ColumnDef::new(Profiles::Timezone).string_len(80).null())
+                    .col(
+                        ColumnDef::new(Profiles::CreatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(Profiles::UpdatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(Categories::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Categories::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Categories::Name).string_len(120).not_null())
+                    .col(
+                        ColumnDef::new(Categories::Slug)
+                            .string_len(140)
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(ColumnDef::new(Categories::Description).text().null())
+                    .col(
+                        ColumnDef::new(Categories::SortOrder)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Categories::IsVisible)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(Categories::CreatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(Categories::UpdatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(Topics::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Topics::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Topics::Name).string_len(120).not_null())
+                    .col(
+                        ColumnDef::new(Topics::Slug)
+                            .string_len(140)
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(ColumnDef::new(Topics::Description).text().null())
+                    .col(
+                        ColumnDef::new(Topics::SortOrder)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(
+                        ColumnDef::new(Topics::IsVisible)
+                            .boolean()
+                            .not_null()
+                            .default(true),
+                    )
+                    .col(
+                        ColumnDef::new(Topics::CreatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(Topics::UpdatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(Tags::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Tags::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(ColumnDef::new(Tags::Name).string_len(120).not_null())
+                    .col(
+                        ColumnDef::new(Tags::Slug)
+                            .string_len(140)
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Tags::CreatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(Tags::UpdatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(Badges::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(Badges::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(Badges::Key)
+                            .string_len(120)
+                            .not_null()
+                            .unique_key(),
+                    )
+                    .col(ColumnDef::new(Badges::Name).string_len(120).not_null())
+                    .col(ColumnDef::new(Badges::Description).text().null())
+                    .col(ColumnDef::new(Badges::Icon).string_len(120).null())
+                    .col(
+                        ColumnDef::new(Badges::RoleScoped)
+                            .boolean()
+                            .not_null()
+                            .default(false),
+                    )
+                    .col(
+                        ColumnDef::new(Badges::CreatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(Badges::UpdatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .to_owned(),
+            )
+            .await?;
+
+        manager
+            .create_table(
+                Table::create()
+                    .table(ReputationEvents::Table)
+                    .if_not_exists()
+                    .col(
+                        ColumnDef::new(ReputationEvents::Id)
+                            .big_integer()
+                            .not_null()
+                            .auto_increment()
+                            .primary_key(),
+                    )
+                    .col(
+                        ColumnDef::new(ReputationEvents::UserId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ReputationEvents::EventType)
+                            .string_len(80)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ReputationEvents::TargetType)
+                            .string_len(80)
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ReputationEvents::TargetId)
+                            .big_integer()
+                            .not_null(),
+                    )
+                    .col(
+                        ColumnDef::new(ReputationEvents::Weight)
+                            .integer()
+                            .not_null()
+                            .default(0),
+                    )
+                    .col(ColumnDef::new(ReputationEvents::Summary).text().null())
+                    .col(
+                        ColumnDef::new(ReputationEvents::CreatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .col(
+                        ColumnDef::new(ReputationEvents::UpdatedAt)
+                            .timestamp()
+                            .not_null()
+                            .default(Expr::current_timestamp()),
+                    )
+                    .to_owned(),
+            )
+            .await
+    }
+
+    async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
+        manager
+            .drop_table(Table::drop().table(ReputationEvents::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Badges::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Tags::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Topics::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Categories::Table).to_owned())
+            .await?;
+        manager
+            .drop_table(Table::drop().table(Profiles::Table).to_owned())
+            .await
+    }
+}
+
+#[derive(DeriveIden)]
+enum Profiles {
+    Table,
+    Id,
+    UserId,
+    Handle,
+    DisplayName,
+    Bio,
+    AvatarUrl,
+    WebsiteUrl,
+    GithubUrl,
+    Location,
+    Timezone,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum Categories {
+    Table,
+    Id,
+    Name,
+    Slug,
+    Description,
+    SortOrder,
+    IsVisible,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum Topics {
+    Table,
+    Id,
+    Name,
+    Slug,
+    Description,
+    SortOrder,
+    IsVisible,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum Tags {
+    Table,
+    Id,
+    Name,
+    Slug,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum Badges {
+    Table,
+    Id,
+    Key,
+    Name,
+    Description,
+    Icon,
+    RoleScoped,
+    CreatedAt,
+    UpdatedAt,
+}
+
+#[derive(DeriveIden)]
+enum ReputationEvents {
+    Table,
+    Id,
+    UserId,
+    EventType,
+    TargetType,
+    TargetId,
+    Weight,
+    Summary,
+    CreatedAt,
+    UpdatedAt,
+}

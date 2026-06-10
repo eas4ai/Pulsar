@@ -7,6 +7,7 @@ mod m20240101_000003_create_remember_tokens_table;
 mod m20240101_000004_add_email_verified_at_to_users;
 mod m20240101_000005_create_auth_flow_tokens;
 mod m20260110_000006_create_articles;
+mod m20260610_000007_create_v2_foundations;
 
 pub struct Migrator;
 
@@ -21,6 +22,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20240101_000005_create_auth_flow_tokens::Migration),
             Box::new(CreateRbacTables),
             Box::new(m20260110_000006_create_articles::Migration),
+            Box::new(m20260610_000007_create_v2_foundations::Migration),
         ]
     }
 }
