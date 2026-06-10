@@ -14,6 +14,7 @@ frontend/dist
 # Local reference material
 reference/
 HANDOFF.md
+.superpowers/
 
 # IDE
 .idea
