@@ -11,7 +11,10 @@
 use std::any::Any;
 
 use chrono::{DateTime, Utc};
-use suprnova::{attrs, hashing, model, Authenticatable, FrameworkError};
+use suprnova::{
+    Authenticatable, CanResetPassword, FrameworkError, HasRoles, MustVerifyEmail, attrs, hashing,
+    model,
+};
 
 #[model(
     table = "users",
@@ -24,6 +27,10 @@ pub struct User {
     pub name: String,
     pub email: String,
     pub password: String,
+    // Nullable verification timestamp powering the email-verification flow.
+    // The model macro auto-injects `AsOptionalDateTime` for
+    // `Option<DateTime<Utc>>` fields, so no explicit cast entry is needed.
+    pub email_verified_at: Option<DateTime<Utc>>,
     pub remember_token: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
@@ -70,10 +77,7 @@ impl User {
     /// is deliberately outside `fillable` (it is never set from request
     /// input), so this writes the whole row via `save` rather than a
     /// mass-assignment update.
-    pub async fn update_remember_token(
-        &self,
-        token: Option<String>,
-    ) -> Result<(), FrameworkError> {
+    pub async fn update_remember_token(&self, token: Option<String>) -> Result<(), FrameworkError> {
         let mut updated = self.clone();
         updated.remember_token = token;
         <Self as suprnova::eloquent::Model>::save(&updated).await
@@ -89,13 +93,60 @@ impl Authenticatable for User {
         "id"
     }
 
+    /// Expose the stored hash so the built-in `EloquentUserProvider`
+    /// can validate credentials — without this override the trait
+    /// default returns `None` and `Auth::attempt` rejects EVERY
+    /// password, so `POST /login` can never succeed.
+    fn get_auth_password(&self) -> Option<&str> {
+        Some(&self.password)
+    }
+
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    fn into_arc_any(
-        self: std::sync::Arc<Self>,
-    ) -> std::sync::Arc<dyn Any + Send + Sync> {
+    fn into_arc_any(self: std::sync::Arc<Self>) -> std::sync::Arc<dyn Any + Send + Sync> {
         self
+    }
+}
+
+impl HasRoles for User {
+    fn rbac_model_type(&self) -> String {
+        "User".to_string()
+    }
+}
+
+// The email-verification flow reads the address + verification timestamp
+// through this trait and writes the timestamp back on consume. Implementing
+// it (alongside `CanResetPassword` below) is what lets the
+// `EloquentUserProvider<User>` registered in `bootstrap::register()` drive
+// `EmailVerification::resend` / `verify` against this model.
+impl MustVerifyEmail for User {
+    fn email(&self) -> &str {
+        &self.email
+    }
+
+    fn email_verified_at(&self) -> Option<DateTime<Utc>> {
+        self.email_verified_at
+    }
+
+    fn set_email_verified_at(&mut self, v: Option<DateTime<Utc>>) {
+        self.email_verified_at = v;
+    }
+
+    fn name(&self) -> Option<&str> {
+        Some(&self.name)
+    }
+}
+
+// The password-reset flow addresses its mail through `email_for_reset()` and
+// persists the rotated (already-hashed) password through `set_password_hash()`.
+impl CanResetPassword for User {
+    fn email_for_reset(&self) -> &str {
+        &self.email
+    }
+
+    fn set_password_hash(&mut self, hash: &str) {
+        self.password = hash.to_string();
     }
 }

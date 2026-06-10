@@ -18,7 +18,7 @@ name = "console"
 path = "src/bin/console.rs"
 
 [dependencies]
-suprnova = { git = "https://github.com/entrepeneur4lyf/suprnova.git" }
+suprnova = { git = "https://github.com/entrepeneur4lyf/suprnova.git", rev = "f32dd05d8308b3858d981ea39585937db958ee92" }
 tokio = { version = "1", features = ["full"] }
 sea-orm-migration = { version = "1.0", features = ["sqlx-sqlite", "sqlx-postgres", "runtime-tokio-native-tls"] }
 sea-orm = { version = "1.0", features = ["sqlx-sqlite", "sqlx-postgres", "runtime-tokio-native-tls", "macros"] }
@@ -29,3 +29,10 @@ clap = { version = "4", features = ["derive"] }
 chrono = { version = "0.4", features = ["serde"] }
 validator = { version = "0.20", features = ["derive"] }
 tracing = "0.1"
+
+[dev-dependencies]
+bytes = "1.11.1"
+http-body-util = "0.1.3"
+hyper = { version = "1.10.1", features = ["full"] }
+hyper-util = { version = "0.1.20", features = ["full"] }
+serde_json = "1.0.150"

@@ -1,0 +1,7 @@
+{
+  "name": "Pulsar",
+  "short_name": "Pulsar",
+  "theme_color": "#101828",
+  "background_color": "#ffffff",
+  "display": "standalone"
+}

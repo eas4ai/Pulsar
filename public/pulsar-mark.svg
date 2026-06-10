@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>Pulsar mark</title>
+  <defs>
+    <linearGradient id="bg" x1="64" y1="48" x2="448" y2="464" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#101828"/>
+      <stop offset="0.58" stop-color="#0f766e"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <radialGradient id="pulse" cx="256" cy="256" r="196" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.42" stop-color="#ccfbf1"/>
+      <stop offset="1" stop-color="#2dd4bf"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="72" fill="url(#pulse)"/>
+  <path d="M256 78c24 74 48 118 114 64-54 66-10 90 64 114-74 24-118 48-64 114-66-54-90-10-114 64-24-74-48-118-114-64 54-66 10-90-64-114 74-24 118-48 64-114 66 54 90 10 114-64Z" fill="#ffffff" fill-opacity="0.92"/>
+  <circle cx="256" cy="256" r="42" fill="#101828"/>
+  <circle cx="256" cy="256" r="18" fill="#f59e0b"/>
+</svg>

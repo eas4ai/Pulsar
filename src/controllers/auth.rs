@@ -2,37 +2,38 @@
 //!
 //! Renders the login/register Inertia pages on GET, validates and
 //! persists credentials on POST, redirects to `/dashboard` on success.
-//! Form bodies are extracted via `FormRequest`, which means per-field
-//! validation errors come back as a standard 422 with the Laravel-style
-//! `{ message, errors }` envelope — the Inertia client surfaces those
-//! automatically on the originating page.
+//! Form bodies are validated through `controllers::inertia_form`: an
+//! `X-Inertia` submission that fails validation re-renders the
+//! originating page with a flat `errors` prop (which `useForm` merges
+//! into `form.errors`), while non-Inertia clients get the Laravel-style
+//! 422 `{ message, errors }` envelope.
 
 use std::sync::Arc;
 
 use serde::Deserialize;
 use suprnova::{
-    handler, inertia_response, redirect, serde_json, Auth, Credentials, FormRequest, InertiaProps,
-    Request, Response, Validate, ValidationErrors,
+    Auth, Credentials, FormRequest, InertiaProps, Request, Response, Validate, ValidationErrors,
+    handler, inertia_response, redirect,
 };
 
+use crate::controllers::{
+    FormFailure, InertiaCtx, errors_json, inertia_config, inertia_form, validation_failure,
+};
 use crate::models::user::User;
 
 // ============================================================================
 // Login
 // ============================================================================
 
+/// No per-page props: validation errors ride Inertia's own `errors` prop
+/// (re-rendered by `render_login` on failure), and the empty struct keeps
+/// the `inertia_response!` call shape uniform.
 #[derive(InertiaProps)]
-pub struct LoginProps {
-    /// Errors carried over from the redirect-back flow. The Inertia
-    /// client merges any session-flashed errors into `errors` on its
-    /// own; this prop exists so the page can render before any
-    /// submission too.
-    pub errors: Option<serde_json::Value>,
-}
+pub struct LoginProps {}
 
 #[handler]
 pub async fn show_login(req: Request) -> Response {
-    inertia_response!(&req, "auth/Login", LoginProps { errors: None })
+    inertia_response!(&req, "auth/Login", LoginProps {}, inertia_config())
 }
 
 #[derive(Deserialize, Validate)]
@@ -47,16 +48,30 @@ pub struct LoginRequest {
 
 impl FormRequest for LoginRequest {}
 
-/// Build a `FrameworkError::Validation` that pins the failure to the
-/// `email` field, mirroring how the bundled validators surface errors.
-fn invalid_credentials() -> suprnova::FrameworkError {
-    let mut errs = ValidationErrors::new();
-    errs.add("email", "These credentials do not match our records.");
-    suprnova::FrameworkError::Validation(errs)
+/// Deliver login validation errors: re-render the page for Inertia
+/// submissions, 422 envelope for everything else.
+async fn render_login(ctx: &InertiaCtx, errors: ValidationErrors) -> Response {
+    if ctx.wants_inertia() {
+        inertia_response!(
+            ctx,
+            "auth/Login",
+            { "errors": errors_json(&errors) },
+            inertia_config()
+        )
+    } else {
+        Err(validation_failure(errors))
+    }
 }
 
 #[handler]
-pub async fn login(form: LoginRequest) -> Response {
+pub async fn login(req: Request) -> Response {
+    let ctx = InertiaCtx::of(&req);
+    let form = match inertia_form::<LoginRequest>(req).await {
+        Ok(form) => form,
+        Err(FormFailure::Invalid(_, errors)) => return render_login(&ctx, errors).await,
+        Err(FormFailure::Response(resp)) => return Err(*resp),
+    };
+
     // `Auth::attempt` verifies the password through the registered user
     // provider, logs the user into the session on success, and issues a
     // remember-me token when requested — all via the named-guard system
@@ -68,7 +83,11 @@ pub async fn login(form: LoginRequest) -> Response {
     .await?
     {
         Some(_user) => redirect!("/dashboard").into(),
-        None => Err(invalid_credentials().into()),
+        None => {
+            let mut errors = ValidationErrors::new();
+            errors.add("email", "These credentials do not match our records.");
+            render_login(&ctx, errors).await
+        }
     }
 }
 
@@ -76,14 +95,13 @@ pub async fn login(form: LoginRequest) -> Response {
 // Registration
 // ============================================================================
 
+/// No per-page props — see [`LoginProps`].
 #[derive(InertiaProps)]
-pub struct RegisterProps {
-    pub errors: Option<serde_json::Value>,
-}
+pub struct RegisterProps {}
 
 #[handler]
 pub async fn show_register(req: Request) -> Response {
-    inertia_response!(&req, "auth/Register", RegisterProps { errors: None })
+    inertia_response!(&req, "auth/Register", RegisterProps {}, inertia_config())
 }
 
 #[derive(Deserialize, Validate)]
@@ -111,17 +129,55 @@ impl FormRequest for RegisterRequest {
     }
 }
 
+/// Deliver registration validation errors — same split as [`render_login`].
+async fn render_register(ctx: &InertiaCtx, errors: ValidationErrors) -> Response {
+    if ctx.wants_inertia() {
+        inertia_response!(
+            ctx,
+            "auth/Register",
+            { "errors": errors_json(&errors) },
+            inertia_config()
+        )
+    } else {
+        Err(validation_failure(errors))
+    }
+}
+
 #[handler]
-pub async fn register(form: RegisterRequest) -> Response {
+pub async fn register(req: Request) -> Response {
+    let ctx = InertiaCtx::of(&req);
+    let form = match inertia_form::<RegisterRequest>(req).await {
+        Ok(form) => form,
+        Err(FormFailure::Invalid(_, errors)) => return render_register(&ctx, errors).await,
+        Err(FormFailure::Response(resp)) => return Err(*resp),
+    };
+
     if User::find_by_email(&form.email).await?.is_some() {
-        let mut errs = ValidationErrors::new();
-        errs.add("email", "This email is already registered.");
-        return Err(suprnova::FrameworkError::Validation(errs).into());
+        let mut errors = ValidationErrors::new();
+        errors.add("email", "This email is already registered.");
+        return render_register(&ctx, errors).await;
     }
 
     let user = User::create(&form.name, &form.email, &form.password).await?;
+    let user = Arc::new(user);
     // Log the freshly-created user into the session (fires the Login event).
-    Auth::login(Arc::new(user), false).await?;
+    Auth::login(user.clone(), false).await?;
+
+    // Send the verification link to the new account. The user implements
+    // `MustVerifyEmail`, so the provider-agnostic facade mints a token and
+    // mails `{APP_URL}/verify-email/verify?token=…`. Registration leaves the
+    // user logged-in-but-unverified; the `verified` gate on `/dashboard`
+    // routes them to `/verify-email` until they click the link.
+    //
+    // This send is best-effort: the account is already created and the session
+    // logged in, so a mail failure (e.g. a misconfigured `MAIL_FROM`) must not
+    // 500 registration. We log and continue — the user lands on the verified
+    // gate at `/verify-email` and can resend from there.
+    let base = format!("{}/verify-email/verify", crate::controllers::app_url());
+    if let Err(err) = suprnova::auth_flows::EmailVerification::send_link(user.as_ref(), &base).await
+    {
+        tracing::warn!(error = %err, "failed to send verification email on registration");
+    }
 
     redirect!("/dashboard").into()
 }

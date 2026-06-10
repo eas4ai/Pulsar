@@ -1,8 +1,6 @@
 <script setup lang="ts">
-import { useForm } from '@inertiajs/vue3'
-import type { RegisterProps } from '../../types/inertia-props'
-
-const props = defineProps<RegisterProps>()
+import { Link, useForm } from '@inertiajs/vue3'
+import BrandMark from '../../components/BrandMark.vue'
 
 const form = useForm({
   name: '',
@@ -17,97 +15,62 @@ function submit() {
 </script>
 
 <template>
-  <div
-    class="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8"
-  >
-    <div class="max-w-md w-full space-y-8">
-      <div>
-        <h2 class="mt-6 text-center text-3xl font-extrabold text-gray-900">
-          Create your account
-        </h2>
-      </div>
-      <form class="mt-8 space-y-6" @submit.prevent="submit">
-        <div class="space-y-4">
-          <div>
-            <label for="name" class="block text-sm font-medium text-gray-700">Name</label>
-            <input
-              id="name"
-              v-model="form.name"
-              name="name"
-              type="text"
-              required
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-            <p v-if="props.errors?.name" class="mt-1 text-sm text-red-600">
-              {{ props.errors.name[0] }}
-            </p>
-          </div>
+  <v-container class="d-flex justify-center py-12">
+    <v-card class="w-100" max-width="448">
+      <v-card-item class="text-center pt-6">
+        <BrandMark />
+        <v-card-title class="mt-3">Create your account</v-card-title>
+        <v-card-subtitle class="text-wrap">
+          Join Pulsar. It only takes a minute.
+        </v-card-subtitle>
+      </v-card-item>
 
-          <div>
-            <label for="email" class="block text-sm font-medium text-gray-700">Email address</label>
-            <input
-              id="email"
-              v-model="form.email"
-              name="email"
-              type="email"
-              autocomplete="email"
-              required
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-            <p v-if="props.errors?.email" class="mt-1 text-sm text-red-600">
-              {{ props.errors.email[0] }}
-            </p>
-          </div>
+      <v-card-text>
+        <v-form @submit.prevent="submit">
+          <v-text-field
+            v-model="form.name"
+            label="Name"
+            type="text"
+            autocomplete="name"
+            :error-messages="form.errors.name"
+            required
+          />
+          <v-text-field
+            v-model="form.email"
+            label="Email address"
+            type="email"
+            autocomplete="email"
+            :error-messages="form.errors.email"
+            required
+          />
+          <v-text-field
+            v-model="form.password"
+            label="Password"
+            type="password"
+            autocomplete="new-password"
+            hint="At least 8 characters."
+            :error-messages="form.errors.password"
+            required
+          />
+          <v-text-field
+            v-model="form.password_confirmation"
+            label="Confirm password"
+            type="password"
+            autocomplete="new-password"
+            :error-messages="form.errors.password_confirmation"
+            required
+          />
 
-          <div>
-            <label for="password" class="block text-sm font-medium text-gray-700">Password</label>
-            <input
-              id="password"
-              v-model="form.password"
-              name="password"
-              type="password"
-              required
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-            <p v-if="props.errors?.password" class="mt-1 text-sm text-red-600">
-              {{ props.errors.password[0] }}
-            </p>
-          </div>
+          <v-btn type="submit" color="primary" block :loading="form.processing">
+            Register
+          </v-btn>
+        </v-form>
+      </v-card-text>
 
-          <div>
-            <label for="password_confirmation" class="block text-sm font-medium text-gray-700"
-              >Confirm Password</label
-            >
-            <input
-              id="password_confirmation"
-              v-model="form.password_confirmation"
-              name="password_confirmation"
-              type="password"
-              required
-              class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-            />
-            <p v-if="props.errors?.password_confirmation" class="mt-1 text-sm text-red-600">
-              {{ props.errors.password_confirmation[0] }}
-            </p>
-          </div>
-        </div>
-
-        <div>
-          <button
-            type="submit"
-            :disabled="form.processing"
-            class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-          >
-            {{ form.processing ? 'Creating account...' : 'Register' }}
-          </button>
-        </div>
-
-        <div class="text-center">
-          <a href="/login" class="text-indigo-600 hover:text-indigo-500">
-            Already have an account? Sign in
-          </a>
-        </div>
-      </form>
-    </div>
-  </div>
+      <v-card-actions class="justify-center pb-4">
+        <span class="text-body-2 text-medium-emphasis">Already have an account?</span>
+        <Link href="/login" class="text-primary text-body-2 ml-1">Sign in</Link>
+      </v-card-actions>
+    </v-card>
+  </v-container>
 </template>

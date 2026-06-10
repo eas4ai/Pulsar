@@ -1,47 +1,70 @@
 <script setup lang="ts">
-import { router } from '@inertiajs/vue3'
 import type { DashboardProps } from '../types/inertia-props'
 
 defineProps<DashboardProps>()
-
-function handleLogout() {
-  router.post('/logout')
-}
 </script>
 
 <template>
-  <div class="min-h-screen bg-gray-100">
-    <nav class="bg-white shadow">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-          <div class="flex items-center">
-            <span class="text-xl font-semibold">Dashboard</span>
-          </div>
-          <div class="flex items-center space-x-4">
-            <span class="text-gray-700">{{ user.name }}</span>
-            <button
-              @click="handleLogout"
-              class="text-gray-500 hover:text-gray-700 px-3 py-2 rounded-md text-sm font-medium"
-            >
-              Logout
-            </button>
-          </div>
-        </div>
+  <v-container class="console-page">
+    <header class="console-hero">
+      <div>
+        <div class="console-eyebrow">Console</div>
+        <h1>Welcome back, {{ user.name }}.</h1>
+        <p>
+          Track the starter kit's core surfaces and jump into account or public
+          page workflows.
+        </p>
       </div>
-    </nav>
+      <v-chip
+        :color="account.email_verified ? 'success' : 'warning'"
+        variant="tonal"
+        prepend-icon="mdi-email-check-outline"
+      >
+        {{ account.email_verified ? 'Email verified' : 'Email pending' }}
+      </v-chip>
+    </header>
 
-    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-      <div class="px-4 py-6 sm:px-0">
-        <div
-          class="border-4 border-dashed border-gray-200 rounded-lg h-96 flex items-center justify-center"
-        >
-          <div class="text-center">
-            <h2 class="text-2xl font-bold text-gray-900">Welcome, {{ user.name }}!</h2>
-            <p class="mt-2 text-gray-600">You are logged in.</p>
-            <p class="mt-4 text-sm text-gray-500">Email: {{ user.email }}</p>
+    <v-row class="mt-6">
+      <v-col v-for="card in cards" :key="card.title" cols="12" md="4">
+        <article class="dashboard-card">
+          <v-icon :icon="card.icon" size="28" />
+          <div>
+            <div class="dashboard-card__label">{{ card.title }}</div>
+            <strong>{{ card.value }}</strong>
+            <p>{{ card.helper }}</p>
           </div>
+        </article>
+      </v-col>
+    </v-row>
+
+    <section class="dashboard-section">
+      <div class="dashboard-section__header">
+        <div>
+          <div class="console-eyebrow">Quick actions</div>
+          <h2>Keep the kit moving.</h2>
         </div>
       </div>
-    </main>
-  </div>
+
+      <v-row>
+        <v-col v-for="action in actions" :key="action.href" cols="12" md="6">
+          <v-card class="dashboard-action" variant="outlined">
+            <v-card-item>
+              <template #prepend>
+                <v-avatar color="primary" variant="tonal">
+                  <v-icon :icon="action.icon" />
+                </v-avatar>
+              </template>
+              <v-card-title>{{ action.title }}</v-card-title>
+              <v-card-subtitle class="text-wrap">{{ action.body }}</v-card-subtitle>
+            </v-card-item>
+            <v-card-actions>
+              <v-btn :to="action.href" color="primary" variant="text" append-icon="mdi-arrow-right">
+                Open
+              </v-btn>
+            </v-card-actions>
+          </v-card>
+        </v-col>
+      </v-row>
+    </section>
+  </v-container>
 </template>

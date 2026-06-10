@@ -2,6 +2,7 @@ pub mod actions;
 pub mod bootstrap;
 pub mod commands;
 pub mod config;
+pub mod content;
 pub mod controllers;
 pub mod middleware;
 pub mod migrations;

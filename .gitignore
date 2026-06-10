@@ -1,6 +1,7 @@
 # Rust
 /target
 Cargo.lock
+database.db
 
 # Node
 frontend/node_modules
@@ -8,6 +9,7 @@ frontend/dist
 
 # Build outputs
 /public/assets
+/docs/superpowers
 
 # IDE
 .idea

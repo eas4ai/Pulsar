@@ -27,12 +27,46 @@ use std::sync::Arc;
 
 #[allow(unused_imports)]
 use suprnova::{
-    bind, global_middleware, singleton, App, Auth, AuthConfig, AuthManager, CsrfMiddleware,
-    EloquentUserProvider, IncludeMiddleware, SessionConfig, SessionMiddleware, DB,
+    App, Auth, AuthConfig, AuthManager, CsrfMiddleware, DB, EloquentUserProvider, FrameworkError,
+    IncludeMiddleware, Inertia, InertiaConfig, InertiaRequestExt, InertiaSharedData, Prop,
+    SessionConfig, SessionMiddleware, bind, global_middleware, indexmap::IndexMap, serde_json,
+    singleton,
 };
 
 use crate::middleware;
 use crate::models::user::User;
+
+/// Shares the authenticated user on every Inertia response as `auth.user`
+/// — the shape `frontend/src/types/auth.ts` declares and `Layout.svelte`
+/// renders the user menu / Dashboard nav link from. Guests share
+/// `auth.user: null` so pages can branch on it without optional-chaining
+/// surprises.
+///
+/// Public so the integration-test harness (`tests/http_flows.rs`) can mirror
+/// this registration against its own server stack.
+pub struct AuthShare;
+
+#[suprnova::__async_trait]
+impl InertiaSharedData for AuthShare {
+    async fn share(
+        &self,
+        _req: &dyn InertiaRequestExt,
+    ) -> Result<IndexMap<String, Prop>, FrameworkError> {
+        let user = Auth::user_as::<User>().await?;
+        let mut out = IndexMap::new();
+        out.insert(
+            "auth".to_string(),
+            Prop::Eager(serde_json::json!({
+                "user": user.map(|u| serde_json::json!({
+                    "id": u.id,
+                    "name": u.name,
+                    "email": u.email,
+                })),
+            })),
+        );
+        Ok(out)
+    }
+}
 
 /// Register global middleware and services
 ///
@@ -66,6 +100,31 @@ pub async fn register() {
     App::singleton(AuthManager::new(AuthConfig::from_env()));
     Auth::register_provider("users", Arc::new(EloquentUserProvider::<User>::new()))
         .expect("register users provider");
+
+    // Inertia protocol middlewares: the 409 version-mismatch handshake
+    // (stale clients hard-reload to pick up new assets) and the 302→303
+    // upgrade on non-GET redirects. Without the 303 upgrade a browser
+    // replays a PATCH/PUT/DELETE verbatim against the redirect target,
+    // looping until its 20-redirect cap kills the visit.
+    //
+    // The version given here MUST match the one the page responses embed,
+    // or every Inertia GET answers 409 and the client hard-reloads on each
+    // navigation. The kit's `inertia_response!` calls use the default
+    // `InertiaConfig` (static version "1.0"), so install with that same
+    // default. If you wire a real asset version (e.g. a build hash), set
+    // it both here and on every response's config.
+    let inertia_config = match suprnova::Environment::detect() {
+        suprnova::Environment::Local
+        | suprnova::Environment::Development
+        | suprnova::Environment::Testing => InertiaConfig::new(),
+        _ => InertiaConfig::new().production(),
+    };
+    Inertia::install(&inertia_config);
+
+    // Share the authenticated user (`auth.user`) on every Inertia
+    // response so the layout can render the user menu without each
+    // handler threading the user through its own props.
+    App::register_inertia_shared(Arc::new(AuthShare));
 
     // Example: Register a trait binding with runtime config
     // bind!(dyn Database, PostgresDB::new());
