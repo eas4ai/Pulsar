@@ -143,6 +143,54 @@ async fn non_author_cannot_open_article_admin() {
 }
 
 #[tokio::test]
+async fn contributor_cannot_open_existing_article_edit_route() {
+    let mut harness = setup().await;
+    seed_default_roles().await.expect("seed roles");
+    let article = seed_article("contributor-edit-denied", "draft").await;
+    let user = verified_user("Contributor Edit", "contributor-edit@pulsar.test").await;
+    user.assign_role("contributor")
+        .await
+        .expect("assign contributor");
+    let addr = harness.spawn_app().await;
+    let mut client = Client::new(addr);
+    login(&mut client, "contributor-edit@pulsar.test").await;
+
+    let resp = client
+        .get(&format!("/admin/articles/{}/edit", article.id))
+        .await;
+    assert_eq!(resp.status, 403);
+}
+
+#[tokio::test]
+async fn contributor_cannot_update_existing_article() {
+    let mut harness = setup().await;
+    seed_default_roles().await.expect("seed roles");
+    let article = seed_article("contributor-update-denied", "draft").await;
+    let user = verified_user("Contributor Update", "contributor-update@pulsar.test").await;
+    user.assign_role("contributor")
+        .await
+        .expect("assign contributor");
+    let addr = harness.spawn_app().await;
+    let mut client = Client::new(addr);
+    login(&mut client, "contributor-update@pulsar.test").await;
+
+    let resp = client
+        .put_json(
+            &format!("/admin/articles/{}", article.id),
+            json!({
+                "title": "Contributor Update Denied",
+                "slug": "contributor-update-denied",
+                "category": "Engineering",
+                "tags": "rbac",
+                "status": "draft",
+                "body_markdown": "# Contributor Update Denied\n\nThis should not be writable.",
+            }),
+        )
+        .await;
+    assert_eq!(resp.status, 403);
+}
+
+#[tokio::test]
 async fn author_can_create_draft_publish_and_appear_on_blog() {
     let mut harness = setup().await;
     seed_default_roles().await.expect("seed roles");
@@ -189,6 +237,11 @@ async fn author_can_create_draft_publish_and_appear_on_blog() {
     assert!(article.has_math == false);
     assert_eq!(article.source, "first_party");
     assert_eq!(article.tags_vec(), vec!["pulsar", "launch"]);
+
+    let edit = client
+        .get(&format!("/admin/articles/{}/edit", article.id))
+        .await;
+    assert_eq!(edit.status, 200, "author edit should render: {}", edit.body);
 
     let publish = client
         .post_json(
