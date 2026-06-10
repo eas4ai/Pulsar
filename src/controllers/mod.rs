@@ -74,6 +74,13 @@ impl InertiaCtx {
     pub(crate) fn wants_inertia(&self) -> bool {
         InertiaRequestExt::is_inertia(self)
     }
+
+    pub(crate) fn with_path(&self, path: impl Into<String>) -> Self {
+        Self {
+            path: path.into(),
+            headers: self.headers.clone(),
+        }
+    }
 }
 
 impl InertiaRequestExt for InertiaCtx {

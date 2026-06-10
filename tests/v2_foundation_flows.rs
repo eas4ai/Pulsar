@@ -49,6 +49,13 @@ mod v2_foundation_flows {
         assert_eq!(resp.location(), "/dashboard");
     }
 
+    async fn verified_admin(name: &str, email: &str) -> User {
+        seed_default_roles().await.expect("seed roles");
+        let user = verified_user(name, email).await;
+        user.assign_role("admin").await.expect("assign admin");
+        user
+    }
+
     async fn public_profile(user: &User, handle: &str, display_name: &str) -> Profile {
         let mut profile = Profile::ensure_for_user(user)
             .await
@@ -931,9 +938,7 @@ mod v2_foundation_flows {
     #[tokio::test]
     async fn admin_can_create_taxonomy_category() {
         let mut harness = setup().await;
-        seed_default_roles().await.expect("seed roles");
-        let user = verified_user("Taxonomy Admin", "taxonomy-admin@pulsar.test").await;
-        user.assign_role("admin").await.expect("assign admin");
+        verified_admin("Taxonomy Admin", "taxonomy-admin@pulsar.test").await;
         let addr = harness.spawn_app().await;
         let mut client = Client::new(addr);
         login(&mut client, "taxonomy-admin@pulsar.test").await;
@@ -969,6 +974,381 @@ mod v2_foundation_flows {
         );
         assert_eq!(category.sort_order, 10);
         assert!(category.is_visible);
+    }
+
+    #[tokio::test]
+    async fn inertia_taxonomy_validation_uses_admin_taxonomy_url() {
+        let mut harness = setup().await;
+        verified_admin("Taxonomy Inertia Admin", "taxonomy-inertia@pulsar.test").await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-inertia@pulsar.test").await;
+
+        let resp = client
+            .inertia_post_json(
+                "/admin/topics",
+                json!({
+                    "name": "",
+                    "slug": "inertia-topic",
+                    "description": "Validation should render the admin taxonomy page.",
+                    "sort_order": 0,
+                    "is_visible": true,
+                }),
+            )
+            .await;
+
+        assert_eq!(
+            resp.status, 200,
+            "Inertia validation should re-render: {}",
+            resp.body
+        );
+        assert!(
+            resp.body.contains("\"url\":\"/admin/taxonomy\"")
+                && !resp.body.contains("\"url\":\"/admin/topics\""),
+            "Inertia validation must use the GET taxonomy page URL: {}",
+            resp.body
+        );
+        assert!(
+            resp.body.contains("Name is required."),
+            "validation response should include field errors: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn taxonomy_term_validation_reports_malformed_sort_order() {
+        let mut harness = setup().await;
+        verified_admin("Taxonomy Sort Admin", "taxonomy-sort@pulsar.test").await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-sort@pulsar.test").await;
+
+        let resp = client
+            .post_json(
+                "/admin/categories",
+                json!({
+                    "name": "Broken Sort",
+                    "slug": "broken-sort",
+                    "description": "Malformed sort order should be a field error.",
+                    "sort_order": "",
+                    "is_visible": true,
+                }),
+            )
+            .await;
+
+        assert_eq!(
+            resp.status, 422,
+            "malformed sort_order should return validation errors: {}",
+            resp.body
+        );
+        assert!(
+            resp.body.contains("Sort order is required.")
+                || resp.body.contains("Sort order must be an integer."),
+            "validation response should mention sort_order: {}",
+            resp.body
+        );
+        assert!(
+            Category::find_by_slug("broken-sort")
+                .await
+                .expect("lookup broken sort category")
+                .is_none(),
+            "invalid sort_order must not create a category"
+        );
+    }
+
+    #[tokio::test]
+    async fn taxonomy_duplicate_slugs_return_validation_errors() {
+        let mut harness = setup().await;
+        verified_admin(
+            "Taxonomy Duplicate Admin",
+            "taxonomy-duplicates@pulsar.test",
+        )
+        .await;
+        <Category as Model>::create(attrs! {
+            name: "Existing Category",
+            slug: "existing-category",
+            sort_order: 0,
+            is_visible: true,
+        })
+        .await
+        .expect("create existing category");
+        let first_topic = <Topic as Model>::create(attrs! {
+            name: "First Topic",
+            slug: "first-topic",
+            sort_order: 0,
+            is_visible: true,
+        })
+        .await
+        .expect("create first topic");
+        let second_topic = <Topic as Model>::create(attrs! {
+            name: "Second Topic",
+            slug: "second-topic",
+            sort_order: 1,
+            is_visible: true,
+        })
+        .await
+        .expect("create second topic");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-duplicates@pulsar.test").await;
+
+        let create = client
+            .post_json(
+                "/admin/categories",
+                json!({
+                    "name": "Duplicate Category",
+                    "slug": "existing-category",
+                    "description": null,
+                    "sort_order": 2,
+                    "is_visible": true,
+                }),
+            )
+            .await;
+        assert_eq!(
+            create.status, 422,
+            "duplicate category slug should validate: {}",
+            create.body
+        );
+        assert!(
+            create.body.contains("Slug is already in use."),
+            "duplicate create should explain slug uniqueness: {}",
+            create.body
+        );
+
+        let update = client
+            .put_json(
+                &format!("/admin/topics/{}", second_topic.id),
+                json!({
+                    "name": "Second Topic",
+                    "slug": first_topic.slug,
+                    "description": null,
+                    "sort_order": 1,
+                    "is_visible": true,
+                }),
+            )
+            .await;
+        assert_eq!(
+            update.status, 422,
+            "duplicate topic slug update should validate: {}",
+            update.body
+        );
+        assert!(
+            update.body.contains("Slug is already in use."),
+            "duplicate update should explain slug uniqueness: {}",
+            update.body
+        );
+    }
+
+    #[tokio::test]
+    async fn taxonomy_db_unique_slug_failures_return_validation_errors() {
+        let mut harness = setup().await;
+        verified_admin("Taxonomy Race Admin", "taxonomy-race@pulsar.test").await;
+        let db = DB::connection().expect("resolve test database connection");
+        db.inner()
+            .execute(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                "CREATE TRIGGER fail_category_slug_unique \
+                 BEFORE INSERT ON categories \
+                 WHEN NEW.slug = 'race-category' \
+                 BEGIN SELECT RAISE(ABORT, 'UNIQUE constraint failed: categories.slug'); END;"
+                    .to_string(),
+            ))
+            .await
+            .expect("install unique failure trigger");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-race@pulsar.test").await;
+
+        let resp = client
+            .post_json(
+                "/admin/categories",
+                json!({
+                    "name": "Race Category",
+                    "slug": "race-category",
+                    "description": "Simulates a uniqueness race at write time.",
+                    "sort_order": 0,
+                    "is_visible": true,
+                }),
+            )
+            .await;
+
+        assert_eq!(
+            resp.status, 422,
+            "DB unique failures should become validation errors: {}",
+            resp.body
+        );
+        assert!(
+            resp.body.contains("Slug is already in use."),
+            "DB unique failure should be mapped to slug field error: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn admin_can_create_taxonomy_topics_and_tags() {
+        let mut harness = setup().await;
+        verified_admin("Taxonomy Create Admin", "taxonomy-create@pulsar.test").await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-create@pulsar.test").await;
+
+        let topic_resp = client
+            .post_json(
+                "/admin/topics",
+                json!({
+                    "name": "Distributed Systems",
+                    "slug": "distributed-systems",
+                    "description": "Consensus, reliability, and operations.",
+                    "sort_order": 8,
+                    "is_visible": false,
+                }),
+            )
+            .await;
+        assert_eq!(
+            topic_resp.status, 302,
+            "topic creation should redirect: {}",
+            topic_resp.body
+        );
+        assert_eq!(topic_resp.location(), "/admin/taxonomy");
+        let topic = Topic::find_by_slug("distributed-systems")
+            .await
+            .expect("lookup created topic")
+            .expect("created topic exists");
+        assert_eq!(topic.name, "Distributed Systems");
+        assert_eq!(topic.sort_order, 8);
+        assert!(!topic.is_visible);
+
+        let tag_resp = client
+            .post_json(
+                "/admin/tags",
+                json!({
+                    "name": "Async",
+                    "slug": "async",
+                }),
+            )
+            .await;
+        assert_eq!(
+            tag_resp.status, 302,
+            "tag creation should redirect: {}",
+            tag_resp.body
+        );
+        assert_eq!(tag_resp.location(), "/admin/taxonomy");
+        let tag = Tag::find_by_slug("async")
+            .await
+            .expect("lookup created tag")
+            .expect("created tag exists");
+        assert_eq!(tag.name, "Async");
+    }
+
+    #[tokio::test]
+    async fn admin_can_update_category_topic_and_tag() {
+        let mut harness = setup().await;
+        verified_admin("Taxonomy Update Admin", "taxonomy-update@pulsar.test").await;
+        let category = <Category as Model>::create(attrs! {
+            name: "Old Category",
+            slug: "old-category",
+            description: "Old category description.",
+            sort_order: 4,
+            is_visible: true,
+        })
+        .await
+        .expect("create category");
+        let topic = <Topic as Model>::create(attrs! {
+            name: "Old Topic",
+            slug: "old-topic",
+            description: "Old topic description.",
+            sort_order: 5,
+            is_visible: false,
+        })
+        .await
+        .expect("create topic");
+        let tag = <Tag as Model>::create(attrs! {
+            name: "Old Tag",
+            slug: "old-tag",
+        })
+        .await
+        .expect("create tag");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "taxonomy-update@pulsar.test").await;
+
+        let category_resp = client
+            .put_json(
+                &format!("/admin/categories/{}", category.id),
+                json!({
+                    "name": "New Category",
+                    "slug": "new-category",
+                    "description": "New category description.",
+                    "sort_order": 14,
+                    "is_visible": false,
+                }),
+            )
+            .await;
+        assert_eq!(
+            category_resp.status, 302,
+            "category update should redirect: {}",
+            category_resp.body
+        );
+
+        let topic_resp = client
+            .put_json(
+                &format!("/admin/topics/{}", topic.id),
+                json!({
+                    "name": "New Topic",
+                    "slug": "new-topic",
+                    "description": "New topic description.",
+                    "sort_order": 15,
+                    "is_visible": true,
+                }),
+            )
+            .await;
+        assert_eq!(
+            topic_resp.status, 302,
+            "topic update should redirect: {}",
+            topic_resp.body
+        );
+
+        let tag_resp = client
+            .put_json(
+                &format!("/admin/tags/{}", tag.id),
+                json!({
+                    "name": "New Tag",
+                    "slug": "new-tag",
+                }),
+            )
+            .await;
+        assert_eq!(
+            tag_resp.status, 302,
+            "tag update should redirect: {}",
+            tag_resp.body
+        );
+
+        let category = Category::find_by_slug("new-category")
+            .await
+            .expect("lookup updated category")
+            .expect("updated category exists");
+        assert_eq!(category.name, "New Category");
+        assert_eq!(
+            category.description.as_deref(),
+            Some("New category description.")
+        );
+        assert_eq!(category.sort_order, 14);
+        assert!(!category.is_visible);
+
+        let topic = Topic::find_by_slug("new-topic")
+            .await
+            .expect("lookup updated topic")
+            .expect("updated topic exists");
+        assert_eq!(topic.name, "New Topic");
+        assert_eq!(topic.description.as_deref(), Some("New topic description."));
+        assert_eq!(topic.sort_order, 15);
+        assert!(topic.is_visible);
+
+        let tag = Tag::find_by_slug("new-tag")
+            .await
+            .expect("lookup updated tag")
+            .expect("updated tag exists");
+        assert_eq!(tag.name, "New Tag");
     }
 
     #[tokio::test]
@@ -1022,6 +1402,60 @@ mod v2_foundation_flows {
 
         let hidden = client.get("/topics/private-planning").await;
         assert_eq!(hidden.status, 404, "hidden topic detail should 404");
+    }
+
+    #[tokio::test]
+    async fn public_category_and_tag_pages_render() {
+        let mut harness = setup().await;
+        <Category as Model>::create(attrs! {
+            name: "Engineering",
+            slug: "engineering",
+            description: "Technical practice and systems.",
+            sort_order: 0,
+            is_visible: true,
+        })
+        .await
+        .expect("create visible category");
+        <Category as Model>::create(attrs! {
+            name: "Hidden Category",
+            slug: "hidden-category",
+            description: "Hidden taxonomy category.",
+            sort_order: 1,
+            is_visible: false,
+        })
+        .await
+        .expect("create hidden category");
+        <Tag as Model>::create(attrs! {
+            name: "Rust",
+            slug: "rust",
+        })
+        .await
+        .expect("create tag");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+
+        let category = client.get("/categories/engineering").await;
+        assert_eq!(
+            category.status, 200,
+            "visible category detail should render: {}",
+            category.body
+        );
+        assert!(
+            category.body.contains("Engineering") && category.body.contains("contribution_counts"),
+            "category detail should expose empty contribution counts: {}",
+            category.body
+        );
+
+        let hidden = client.get("/categories/hidden-category").await;
+        assert_eq!(hidden.status, 404, "hidden category detail should 404");
+
+        let tag = client.get("/tags/rust").await;
+        assert_eq!(tag.status, 200, "tag detail should render: {}", tag.body);
+        assert!(
+            tag.body.contains("Rust") && tag.body.contains("contribution_counts"),
+            "tag detail should expose empty contribution counts: {}",
+            tag.body
+        );
     }
 
     #[tokio::test]

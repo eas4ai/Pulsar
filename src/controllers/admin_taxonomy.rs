@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use suprnova::eloquent::{Direction, Model};
 use suprnova::{
     FormRequest, FrameworkError, InertiaProps, Redirect, Request, Response, Validate,
-    ValidationErrors, attrs, handler, inertia_response,
+    ValidationErrors, attrs, handler, inertia_response, serde_json::Value,
 };
 
 use crate::controllers::{
@@ -47,8 +47,8 @@ pub struct TaxonomyTermFormRequest {
     pub name: String,
     pub slug: String,
     pub description: Option<String>,
-    pub sort_order: i32,
-    pub is_visible: bool,
+    pub sort_order: Option<Value>,
+    pub is_visible: Option<Value>,
 }
 
 impl FormRequest for TaxonomyTermFormRequest {}
@@ -102,14 +102,21 @@ pub async fn store_category(req: Request) -> Response {
         Err(errors) => return render_index(&ctx, errors).await,
     };
 
-    <Category as Model>::create(attrs! {
+    match <Category as Model>::create(attrs! {
         name: input.name,
         slug: input.slug,
         description: input.description,
         sort_order: input.sort_order,
         is_visible: input.is_visible,
     })
-    .await?;
+    .await
+    {
+        Ok(_) => {}
+        Err(err) if looks_like_slug_unique_error(&err) => {
+            return render_index(&ctx, slug_unique_errors()).await;
+        }
+        Err(err) => return Err(err.into()),
+    }
 
     Redirect::to("/admin/taxonomy").into()
 }
@@ -136,7 +143,13 @@ pub async fn update_category(req: Request) -> Response {
     category.description = input.description;
     category.sort_order = input.sort_order;
     category.is_visible = input.is_visible;
-    Model::save(&category).await?;
+    match Model::save(&category).await {
+        Ok(_) => {}
+        Err(err) if looks_like_slug_unique_error(&err) => {
+            return render_index(&ctx, slug_unique_errors()).await;
+        }
+        Err(err) => return Err(err.into()),
+    }
 
     Redirect::to("/admin/taxonomy").into()
 }
@@ -154,14 +167,21 @@ pub async fn store_topic(req: Request) -> Response {
         Err(errors) => return render_index(&ctx, errors).await,
     };
 
-    <Topic as Model>::create(attrs! {
+    match <Topic as Model>::create(attrs! {
         name: input.name,
         slug: input.slug,
         description: input.description,
         sort_order: input.sort_order,
         is_visible: input.is_visible,
     })
-    .await?;
+    .await
+    {
+        Ok(_) => {}
+        Err(err) if looks_like_slug_unique_error(&err) => {
+            return render_index(&ctx, slug_unique_errors()).await;
+        }
+        Err(err) => return Err(err.into()),
+    }
 
     Redirect::to("/admin/taxonomy").into()
 }
@@ -188,7 +208,13 @@ pub async fn update_topic(req: Request) -> Response {
     topic.description = input.description;
     topic.sort_order = input.sort_order;
     topic.is_visible = input.is_visible;
-    Model::save(&topic).await?;
+    match Model::save(&topic).await {
+        Ok(_) => {}
+        Err(err) if looks_like_slug_unique_error(&err) => {
+            return render_index(&ctx, slug_unique_errors()).await;
+        }
+        Err(err) => return Err(err.into()),
+    }
 
     Redirect::to("/admin/taxonomy").into()
 }
@@ -206,11 +232,18 @@ pub async fn store_tag(req: Request) -> Response {
         Err(errors) => return render_index(&ctx, errors).await,
     };
 
-    <Tag as Model>::create(attrs! {
+    match <Tag as Model>::create(attrs! {
         name: input.name,
         slug: input.slug,
     })
-    .await?;
+    .await
+    {
+        Ok(_) => {}
+        Err(err) if looks_like_slug_unique_error(&err) => {
+            return render_index(&ctx, slug_unique_errors()).await;
+        }
+        Err(err) => return Err(err.into()),
+    }
 
     Redirect::to("/admin/taxonomy").into()
 }
@@ -234,15 +267,22 @@ pub async fn update_tag(req: Request) -> Response {
         .ok_or_else(|| FrameworkError::not_found(format!("tag `{id}`")))?;
     tag.name = input.name;
     tag.slug = input.slug;
-    Model::save(&tag).await?;
+    match Model::save(&tag).await {
+        Ok(_) => {}
+        Err(err) if looks_like_slug_unique_error(&err) => {
+            return render_index(&ctx, slug_unique_errors()).await;
+        }
+        Err(err) => return Err(err.into()),
+    }
 
     Redirect::to("/admin/taxonomy").into()
 }
 
 async fn render_index(ctx: &InertiaCtx, errors: ValidationErrors) -> Response {
     if ctx.wants_inertia() {
+        let ctx = ctx.with_path("/admin/taxonomy");
         inertia_response!(
-            ctx,
+            &ctx,
             "admin/taxonomy/Index",
             {
                 "categories": category_rows().await?,
@@ -339,6 +379,8 @@ async fn validate_term_form(
     let mut errors = ValidationErrors::new();
     let name = validate_required_text("name", "Name", &form.name, NAME_MAX_LENGTH, &mut errors);
     let slug = validate_slug(&form.slug, &mut errors);
+    let sort_order = validate_sort_order(&form.sort_order, &mut errors);
+    let is_visible = validate_is_visible(&form.is_visible, &mut errors);
     if let Some(slug) = &slug {
         validate_unique_term_slug(kind, slug, current_id, &mut errors).await?;
     }
@@ -351,8 +393,8 @@ async fn validate_term_form(
         name: name.expect("validated name exists"),
         slug: slug.expect("validated slug exists"),
         description: normalize_optional(&form.description),
-        sort_order: form.sort_order,
-        is_visible: form.is_visible,
+        sort_order: sort_order.expect("validated sort order exists"),
+        is_visible: is_visible.expect("validated visibility exists"),
     }))
 }
 
@@ -438,6 +480,83 @@ fn validate_slug(value: &str, errors: &mut ValidationErrors) -> Option<String> {
         );
     }
     Some(slug)
+}
+
+fn validate_sort_order(value: &Option<Value>, errors: &mut ValidationErrors) -> Option<i32> {
+    match value {
+        None | Some(Value::Null) => {
+            errors.add("sort_order", "Sort order is required.");
+            None
+        }
+        Some(Value::Number(number)) => number
+            .as_i64()
+            .and_then(|value| i32::try_from(value).ok())
+            .or_else(|| {
+                errors.add("sort_order", "Sort order must be an integer.");
+                None
+            }),
+        Some(Value::String(value)) => {
+            let value = value.trim();
+            if value.is_empty() {
+                errors.add("sort_order", "Sort order is required.");
+                None
+            } else {
+                value.parse::<i32>().map(Some).unwrap_or_else(|_| {
+                    errors.add("sort_order", "Sort order must be an integer.");
+                    None
+                })
+            }
+        }
+        _ => {
+            errors.add("sort_order", "Sort order must be an integer.");
+            None
+        }
+    }
+}
+
+fn validate_is_visible(value: &Option<Value>, errors: &mut ValidationErrors) -> Option<bool> {
+    match value {
+        None | Some(Value::Null) => {
+            errors.add("is_visible", "Visibility is required.");
+            None
+        }
+        Some(Value::Bool(value)) => Some(*value),
+        Some(Value::Number(number)) => match number.as_i64() {
+            Some(0) => Some(false),
+            Some(1) => Some(true),
+            _ => {
+                errors.add("is_visible", "Visibility must be true or false.");
+                None
+            }
+        },
+        Some(Value::String(value)) => match value.trim().to_ascii_lowercase().as_str() {
+            "" => {
+                errors.add("is_visible", "Visibility is required.");
+                None
+            }
+            "true" | "1" => Some(true),
+            "false" | "0" => Some(false),
+            _ => {
+                errors.add("is_visible", "Visibility must be true or false.");
+                None
+            }
+        },
+        _ => {
+            errors.add("is_visible", "Visibility must be true or false.");
+            None
+        }
+    }
+}
+
+fn slug_unique_errors() -> ValidationErrors {
+    let mut errors = ValidationErrors::new();
+    errors.add("slug", "Slug is already in use.");
+    errors
+}
+
+fn looks_like_slug_unique_error(err: &FrameworkError) -> bool {
+    let message = err.to_string().to_ascii_lowercase();
+    message.contains("unique") && message.contains("slug")
 }
 
 fn normalize_optional(value: &Option<String>) -> Option<String> {
