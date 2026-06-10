@@ -10,6 +10,7 @@ frontend/dist
 # Build outputs
 /public/assets
 /docs/superpowers
+.worktrees/
 
 # Local reference material
 reference/
