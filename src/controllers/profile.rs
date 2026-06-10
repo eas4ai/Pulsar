@@ -266,6 +266,7 @@ fn looks_like_profile_handle_unique_error(err: &FrameworkError) -> bool {
 fn public_profile_input(
     form: &UpdateProfileRequest,
     name: &str,
+    current_handle: &str,
     errors: &mut ValidationErrors,
 ) -> Option<PublicProfileInput> {
     let handle = match normalize_optional(&form.handle) {
@@ -282,7 +283,7 @@ fn public_profile_input(
                     "Handle may only contain lowercase letters, numbers, and hyphens.",
                 );
             }
-            if is_reserved_generated_handle(&handle) {
+            if is_reserved_generated_handle(&handle) && handle != current_handle {
                 errors.add("handle", "Handles matching user-{number} are reserved.");
             }
             Some(handle)
@@ -377,6 +378,7 @@ pub async fn update(req: Request) -> Response {
 
     let mut user = current_user().await?;
     let mut profile = Profile::ensure_for_user(&user).await?;
+    let current_handle = profile.handle.clone();
     let email_changed = user.email != form.email;
     let mut errors = ValidationErrors::new();
     let name = validate_required_string(
@@ -386,8 +388,12 @@ pub async fn update(req: Request) -> Response {
         DISPLAY_NAME_MAX_LENGTH,
         &mut errors,
     );
-    let profile_input =
-        public_profile_input(&form, name.as_deref().unwrap_or_default(), &mut errors);
+    let profile_input = public_profile_input(
+        &form,
+        name.as_deref().unwrap_or_default(),
+        &current_handle,
+        &mut errors,
+    );
 
     // Guard the `users.email` unique constraint: if the new address belongs to
     // a *different* account, surface the error on `email` rather than letting
@@ -419,7 +425,6 @@ pub async fn update(req: Request) -> Response {
     if email_changed {
         user.set_email_verified_at(None);
     }
-    Model::save(&user).await?;
 
     profile.handle = profile_input.handle;
     profile.display_name = profile_input.display_name;

@@ -6,10 +6,11 @@ mod v2_foundation_flows {
     use chrono::Utc;
     use serde_json::json;
 
-    use suprnova::HasRoles;
     use suprnova::attrs;
     use suprnova::eloquent::Model;
     use suprnova::mail::Mail;
+    use suprnova::sea_orm::{DatabaseBackend, Statement};
+    use suprnova::{ConnectionTrait, DB, HasRoles, MustVerifyEmail};
 
     use super::common::{Client, setup};
     use pulsar::commands::users_promote::seed_default_roles;
@@ -430,6 +431,111 @@ mod v2_foundation_flows {
                 .contains("Handles matching user-{number} are reserved."),
             "validation response should explain reserved handles: {}",
             resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn profile_update_allows_owner_to_keep_default_generated_handle() {
+        let mut harness = setup().await;
+        let email = "default-handle@pulsar.test";
+        let user = verified_user("Default Handle", email).await;
+        let profile = Profile::ensure_for_user(&user)
+            .await
+            .expect("ensure current profile");
+        assert_eq!(profile.handle, format!("user-{}", user.id));
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, email).await;
+
+        let resp = client
+            .patch_json(
+                "/profile",
+                json!({
+                    "name": "Default Handle",
+                    "email": email,
+                    "display_name": "Default Handle",
+                    "handle": profile.handle,
+                    "bio": "Updated while keeping the generated handle.",
+                }),
+            )
+            .await;
+
+        assert_eq!(
+            resp.status, 302,
+            "owner should be able to keep their generated handle: {}",
+            resp.body
+        );
+        assert_eq!(resp.location(), "/profile");
+
+        let updated = Profile::find_by_user_id(user.id)
+            .await
+            .expect("reload profile")
+            .expect("profile exists");
+        assert_eq!(updated.handle, format!("user-{}", user.id));
+        assert_eq!(
+            updated.bio.as_deref(),
+            Some("Updated while keeping the generated handle.")
+        );
+    }
+
+    #[tokio::test]
+    async fn profile_update_rolls_back_user_when_profile_save_fails() {
+        let mut harness = setup().await;
+        let email = "atomic-profile@pulsar.test";
+        let user = verified_user("Atomic Original", email).await;
+        Profile::ensure_for_user(&user)
+            .await
+            .expect("ensure current profile");
+
+        let db = DB::connection().expect("resolve test database connection");
+        db.inner()
+            .execute(Statement::from_string(
+                DatabaseBackend::Sqlite,
+                "CREATE TRIGGER fail_profile_update \
+                 BEFORE UPDATE ON profiles \
+                 BEGIN SELECT RAISE(ABORT, 'forced profile update failure'); END;"
+                    .to_string(),
+            ))
+            .await
+            .expect("install failing profile update trigger");
+
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, email).await;
+
+        let resp = client
+            .patch_json(
+                "/profile",
+                json!({
+                    "name": "Atomic Changed",
+                    "email": "atomic-profile-new@pulsar.test",
+                    "display_name": "Atomic Changed",
+                    "handle": "atomic-profile",
+                    "bio": "This profile save is forced to fail.",
+                }),
+            )
+            .await;
+
+        assert_ne!(
+            resp.status, 302,
+            "profile failure should not report a successful update"
+        );
+        assert!(
+            User::find_by_email("atomic-profile-new@pulsar.test")
+                .await
+                .expect("lookup new email")
+                .is_none(),
+            "failed profile save must not leave the user under the new email"
+        );
+        let reloaded = User::find_by_email(email)
+            .await
+            .expect("lookup original email")
+            .expect("original user row should remain");
+        assert_eq!(reloaded.name, "Atomic Original");
+        assert_eq!(reloaded.email, email);
+        assert!(
+            reloaded.is_email_verified(),
+            "failed profile save must not clear email verification"
         );
     }
 
