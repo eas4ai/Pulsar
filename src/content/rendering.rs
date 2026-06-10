@@ -25,14 +25,10 @@ pub fn render_content(markdown: &str) -> Result<RenderedContent, FrameworkError>
     let preview_text = strip_leading_heading(&rendered.plain_text, heading_title.as_deref());
     let excerpt = truncate_text(&preview_text, EXCERPT_MAX_CHARS);
     let description = description_from_markdown(markdown).unwrap_or_else(|| {
-        if excerpt.is_empty() {
-            heading_title
-                .as_deref()
-                .map(|title| truncate_text(title, DESCRIPTION_MAX_CHARS))
-                .unwrap_or_default()
-        } else {
-            truncate_text(&excerpt, DESCRIPTION_MAX_CHARS)
-        }
+        heading_title
+            .as_deref()
+            .map(|title| truncate_text(title, DESCRIPTION_MAX_CHARS))
+            .unwrap_or_default()
     });
     let has_code = has_code(markdown, &rendered.html);
     let has_math = has_math(markdown, &rendered.html);
@@ -79,11 +75,11 @@ fn strip_leading_heading(plain_text: &str, heading_title: Option<&str>) -> Strin
     let Some(first) = rest.chars().next() else {
         return String::new();
     };
-    if !(first.is_whitespace() || matches!(first, ':' | '-')) {
+    if !(first.is_whitespace() || matches!(first, ':' | '-' | '–' | '—')) {
         return plain_text;
     }
 
-    rest.trim_start_matches(|ch: char| ch.is_whitespace() || matches!(ch, ':' | '-'))
+    rest.trim_start_matches(|ch: char| ch.is_whitespace() || matches!(ch, ':' | '-' | '–' | '—'))
         .to_string()
 }
 
@@ -181,15 +177,16 @@ fn has_code(markdown: &str, html: &str) -> bool {
         .lines()
         .any(|line| fence_marker(line.trim_start()).is_some())
         || html.contains("<pre")
-        || html.contains("<code")
 }
 
 fn has_math(markdown: &str, html: &str) -> bool {
+    let non_code_markdown = markdown_without_code(markdown);
+
     html.contains("data-math-style")
         || html.contains("language-math")
         || has_math_code_fence(markdown)
-        || has_tex_math_delimiters(markdown)
-        || has_dollar_math(markdown)
+        || has_tex_math_delimiters(&non_code_markdown)
+        || has_dollar_math(&non_code_markdown)
 }
 
 fn has_math_code_fence(markdown: &str) -> bool {
@@ -202,6 +199,70 @@ fn has_math_code_fence(markdown: &str) -> bool {
 fn has_tex_math_delimiters(markdown: &str) -> bool {
     (markdown.contains(r"\(") && markdown.contains(r"\)"))
         || (markdown.contains(r"\[") && markdown.contains(r"\]"))
+}
+
+fn markdown_without_code(markdown: &str) -> String {
+    let mut out = String::new();
+    let mut open_fence = None;
+
+    for line in markdown.lines() {
+        let trimmed = line.trim_start();
+        if let Some(marker) = open_fence {
+            if trimmed.starts_with(marker) {
+                open_fence = None;
+            }
+            out.push('\n');
+            continue;
+        }
+
+        if let Some(marker) = fence_marker(trimmed) {
+            open_fence = Some(marker);
+            out.push('\n');
+            continue;
+        }
+
+        out.push_str(&line_without_code_spans(line));
+        out.push('\n');
+    }
+
+    out
+}
+
+fn line_without_code_spans(line: &str) -> String {
+    let chars = line.chars().collect::<Vec<_>>();
+    let mut out = String::new();
+    let mut index = 0;
+
+    while index < chars.len() {
+        if chars[index] != '`' {
+            out.push(chars[index]);
+            index += 1;
+            continue;
+        }
+
+        let ticks = count_run(&chars, index, '`');
+        index += ticks;
+        while index < chars.len() {
+            if chars[index] == '`' && count_run(&chars, index, '`') == ticks {
+                index += ticks;
+                break;
+            }
+            index += 1;
+        }
+        out.push(' ');
+    }
+
+    out
+}
+
+fn count_run(chars: &[char], start: usize, needle: char) -> usize {
+    let mut count = 0;
+    let mut index = start;
+    while chars.get(index).is_some_and(|ch| *ch == needle) {
+        count += 1;
+        index += 1;
+    }
+    count
 }
 
 fn has_dollar_math(markdown: &str) -> bool {
@@ -326,6 +387,47 @@ mod tests {
         assert!(
             rendered.html.contains("data-math-style") || rendered.html.contains("language-math")
         );
+    }
+
+    #[test]
+    fn ignores_math_markers_inside_code() {
+        let inline_code =
+            render_content("Use `$PATH` and `$HOME`.").expect("render inline code markdown");
+        assert!(!inline_code.has_math);
+
+        let fenced_code = render_content("```sh\necho \"$PATH $HOME\"\n```")
+            .expect("render fenced code markdown");
+        assert!(!fenced_code.has_math);
+
+        let actual_math = render_content("Einstein wrote $E = mc^2$.").expect("render math");
+        assert!(actual_math.has_math);
+    }
+
+    #[test]
+    fn code_only_content_does_not_use_code_as_description() {
+        let rendered =
+            render_content("# Example\n\n```rust\ncargo test\n```").expect("render code only");
+
+        assert_eq!(rendered.description, "Example");
+    }
+
+    #[test]
+    fn footnote_only_content_does_not_use_footnotes_as_description() {
+        let rendered =
+            render_content("[^n]: Footnote-only metadata.").expect("render footnote only");
+
+        assert_eq!(rendered.description, "");
+    }
+
+    #[test]
+    fn excerpt_omits_leading_h1_before_dash_delimiters() {
+        let en_dash =
+            render_content("# Overview\n\n– concise summary").expect("render en dash summary");
+        assert_eq!(en_dash.excerpt, "concise summary");
+
+        let em_dash =
+            render_content("# Overview\n\n— concise summary").expect("render em dash summary");
+        assert_eq!(em_dash.excerpt, "concise summary");
     }
 
     #[test]

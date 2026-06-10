@@ -123,4 +123,15 @@ mod tests {
         );
         assert_eq!(rendered.description, rendered.excerpt);
     }
+
+    #[test]
+    fn article_has_code_matches_legacy_block_code_detection() {
+        let inline = render_article_content("Inline", "", "Run `cargo test`.")
+            .expect("render inline code article");
+        assert!(!inline.has_code);
+
+        let fenced = render_article_content("Fenced", "", "```rust\ncargo test\n```")
+            .expect("render fenced code article");
+        assert!(fenced.has_code);
+    }
 }
