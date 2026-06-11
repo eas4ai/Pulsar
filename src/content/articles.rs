@@ -37,13 +37,23 @@ pub fn render_article_content(
     };
 
     let excerpt = article_excerpt(&rendered.excerpt, heading_title.as_deref());
+    let safe_description = rendered.description.trim();
+    let description = if safe_description.is_empty()
+        || heading_title
+            .as_deref()
+            .is_some_and(|title| safe_description == title)
+    {
+        safe_description.to_string()
+    } else {
+        excerpt.clone()
+    };
 
     Ok(RenderedArticleContent {
         title,
         slug,
         html: rendered.html,
         excerpt: excerpt.clone(),
-        description: excerpt,
+        description,
         plain_text: rendered.plain_text,
         has_code: rendered.has_code,
         has_math: rendered.has_math,
@@ -122,6 +132,31 @@ mod tests {
             "Pulsar now includes first-party articles with RSS."
         );
         assert_eq!(rendered.description, rendered.excerpt);
+    }
+
+    #[test]
+    fn normal_prose_article_description_still_matches_excerpt() {
+        let rendered = render_article_content(
+            "Fallback Title",
+            "",
+            "# Pulsar v1 Publishing\n\nPulsar now includes first-party articles with RSS.",
+        )
+        .expect("render prose article content");
+
+        assert_eq!(rendered.description, rendered.excerpt);
+    }
+
+    #[test]
+    fn code_only_article_description_does_not_use_code_text() {
+        let rendered = render_article_content(
+            "Fallback Title",
+            "",
+            "# Build Notes\n\n```sh\ncargo test\n```",
+        )
+        .expect("render code-only article content");
+
+        assert_ne!(rendered.description, "cargo test");
+        assert_eq!(rendered.description, "Build Notes");
     }
 
     #[test]

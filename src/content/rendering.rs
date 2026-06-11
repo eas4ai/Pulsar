@@ -110,6 +110,10 @@ fn description_from_markdown(markdown: &str) -> Option<String> {
             continue;
         }
 
+        if block.is_empty() && is_indented_code_line(line) {
+            continue;
+        }
+
         if trimmed.is_empty() {
             if let Some(description) = description_from_block(&block) {
                 return Some(description);
@@ -162,6 +166,10 @@ fn is_footnote_definition(markdown: &str) -> bool {
     trimmed.starts_with("[^") && trimmed.contains("]:")
 }
 
+fn is_indented_code_line(line: &str) -> bool {
+    line.starts_with("    ") || line.starts_with('\t')
+}
+
 fn fence_marker(trimmed: &str) -> Option<&'static str> {
     if trimmed.starts_with("```") {
         Some("```")
@@ -181,9 +189,10 @@ fn has_code(markdown: &str, html: &str) -> bool {
 
 fn has_math(markdown: &str, html: &str) -> bool {
     let non_code_markdown = markdown_without_code(markdown);
+    let non_code_html = html_without_code_elements(html);
 
-    html.contains("data-math-style")
-        || html.contains("language-math")
+    non_code_html.contains("data-math-style=")
+        || non_code_html.contains("class=\"language-math")
         || has_math_code_fence(markdown)
         || has_tex_math_delimiters(&non_code_markdown)
         || has_dollar_math(&non_code_markdown)
@@ -221,11 +230,70 @@ fn markdown_without_code(markdown: &str) -> String {
             continue;
         }
 
+        if is_indented_code_line(line) {
+            out.push('\n');
+            continue;
+        }
+
         out.push_str(&line_without_code_spans(line));
         out.push('\n');
     }
 
     out
+}
+
+fn html_without_code_elements(html: &str) -> String {
+    let mut out = String::new();
+    let mut cursor = 0;
+
+    while let Some((relative_start, tag)) = find_next_code_tag(&html[cursor..]) {
+        let start = cursor + relative_start;
+        out.push_str(&html[cursor..start]);
+
+        let Some(open_end) = html[start..].find('>').map(|offset| start + offset + 1) else {
+            cursor = html.len();
+            break;
+        };
+        let close_tag = format!("</{tag}>");
+        let tail_lower = html[open_end..].to_ascii_lowercase();
+        cursor = if let Some(relative_close) = tail_lower.find(&close_tag) {
+            open_end + relative_close + close_tag.len()
+        } else {
+            open_end
+        };
+    }
+
+    out.push_str(&html[cursor..]);
+    out
+}
+
+fn find_next_code_tag(html: &str) -> Option<(usize, &'static str)> {
+    let lower = html.to_ascii_lowercase();
+    let code = find_start_tag(&lower, "code").map(|start| (start, "code"));
+    let pre = find_start_tag(&lower, "pre").map(|start| (start, "pre"));
+
+    match (code, pre) {
+        (Some(code), Some(pre)) => Some(if code.0 < pre.0 { code } else { pre }),
+        (Some(code), None) => Some(code),
+        (None, Some(pre)) => Some(pre),
+        (None, None) => None,
+    }
+}
+
+fn find_start_tag(lower_html: &str, tag: &str) -> Option<usize> {
+    let needle = format!("<{tag}");
+    let mut offset = 0;
+
+    while let Some(relative_start) = lower_html[offset..].find(&needle) {
+        let start = offset + relative_start;
+        let next = lower_html.as_bytes().get(start + needle.len()).copied();
+        if next.is_some_and(|byte| matches!(byte, b'>' | b'/' | b' ' | b'\n' | b'\r' | b'\t')) {
+            return Some(start);
+        }
+        offset = start + needle.len();
+    }
+
+    None
 }
 
 fn line_without_code_spans(line: &str) -> String {
@@ -404,11 +472,32 @@ mod tests {
     }
 
     #[test]
+    fn ignores_math_html_markers_inside_code() {
+        let inline_code =
+            render_content("Use `data-math-style` literally.").expect("render inline code marker");
+        assert!(!inline_code.has_math);
+
+        let fenced_code =
+            render_content("```sh\necho language-math\n```").expect("render fenced marker code");
+        assert!(!fenced_code.has_math);
+
+        let actual_math = render_content("Einstein wrote $E = mc^2$.").expect("render math");
+        assert!(actual_math.has_math);
+    }
+
+    #[test]
     fn code_only_content_does_not_use_code_as_description() {
         let rendered =
             render_content("# Example\n\n```rust\ncargo test\n```").expect("render code only");
 
         assert_eq!(rendered.description, "Example");
+    }
+
+    #[test]
+    fn indented_code_only_content_does_not_use_code_as_description() {
+        let rendered = render_content("    cargo test").expect("render indented code only");
+
+        assert_eq!(rendered.description, "");
     }
 
     #[test]
