@@ -5,7 +5,7 @@ import BrandMark from '../components/BrandMark.vue'
 import CtaBand from '../components/landing/CtaBand.vue'
 import FeatureGrid from '../components/landing/FeatureGrid.vue'
 import HeroCodePanel from '../components/landing/HeroCodePanel.vue'
-import MetricStrip from '../components/landing/MetricStrip.vue'
+import CapabilityStrip from '../components/landing/CapabilityStrip.vue'
 import type { AuthUser } from '../types/auth'
 import type { HomeProps } from '../types/inertia-props'
 
@@ -64,7 +64,7 @@ const user = computed(
       </v-container>
     </section>
 
-    <MetricStrip :metrics="metrics" />
+    <CapabilityStrip :capabilities="capabilities" />
 
     <v-container class="landing-content">
       <FeatureGrid :features="features" />

@@ -98,7 +98,7 @@ async fn home_page_exposes_landing_sections() {
     assert_eq!(resp.status, 200);
     assert!(resp.body.contains("Ship a Suprnova product site"));
     assert!(resp.body.contains("features"));
-    assert!(resp.body.contains("metrics"));
+    assert!(resp.body.contains("capabilities"));
 }
 
 // ============================================================================

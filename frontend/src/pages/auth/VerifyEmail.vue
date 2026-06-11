@@ -35,8 +35,8 @@ function logout() {
 </script>
 
 <template>
-  <v-container class="d-flex justify-center py-12">
-    <v-card class="w-100" max-width="448">
+  <v-container class="auth-page">
+    <v-card class="auth-card">
       <v-card-item class="text-center pt-6">
         <BrandMark />
         <v-card-title class="mt-3">Verify your email address</v-card-title>
@@ -71,7 +71,7 @@ function logout() {
         </v-form>
       </v-card-text>
 
-      <v-card-actions class="justify-center pb-4">
+      <v-card-actions class="auth-card__links justify-center pb-4">
         <v-btn variant="text" size="small" @click="logout">Log out</v-btn>
       </v-card-actions>
     </v-card>

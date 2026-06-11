@@ -4,7 +4,7 @@ import { createVuetify } from 'vuetify'
 
 export default createVuetify({
   theme: {
-    defaultTheme: 'dark',
+    defaultTheme: 'light',
     themes: {
       dark: {
         dark: true,
@@ -24,8 +24,8 @@ export default createVuetify({
         dark: false,
         colors: {
           primary: '#0f766e',
-          secondary: '#b45309',
-          accent: '#0284c7',
+          secondary: '#f59e0b',
+          accent: '#38bdf8',
           background: '#f5f7f3',
           surface: '#ffffff',
           error: '#b91c1c',
@@ -38,6 +38,13 @@ export default createVuetify({
   },
   defaults: {
     VTextField: { variant: 'outlined', density: 'comfortable' },
+    VTextarea: { variant: 'outlined', density: 'comfortable' },
+    VSelect: { variant: 'outlined', density: 'comfortable' },
+    VCheckbox: { color: 'primary', density: 'comfortable' },
+    VSwitch: { color: 'primary', density: 'comfortable' },
+    VCard: { rounded: 'lg', variant: 'flat' },
+    VAlert: { rounded: 'lg' },
+    VTabs: { color: 'primary' },
     VBtn: { variant: 'flat', class: 'text-none' },
   },
 })

@@ -14,8 +14,8 @@ function submit() {
 </script>
 
 <template>
-  <v-container class="d-flex justify-center py-12">
-    <v-card class="w-100" max-width="448">
+  <v-container class="auth-page">
+    <v-card class="auth-card">
       <v-card-item class="text-center pt-6">
         <BrandMark />
         <v-card-title class="mt-3">Sign in to Pulsar</v-card-title>
@@ -61,8 +61,8 @@ function submit() {
         </v-form>
       </v-card-text>
 
-      <v-card-actions class="justify-center pb-4">
-        <span class="text-body-2 text-medium-emphasis">Don't have an account?</span>
+      <v-card-actions class="auth-card__links justify-center pb-4">
+        <span class="text-body-2">Don't have an account?</span>
         <Link href="/register" class="text-primary text-body-2 ml-1">Register</Link>
       </v-card-actions>
     </v-card>

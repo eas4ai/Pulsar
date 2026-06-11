@@ -8,7 +8,7 @@ export interface HomeProps {
   headline: string
   subheadline: string
   features: LandingFeature[]
-  metrics: LandingMetric[]
+  capabilities: LandingCapability[]
   sample: LandingCodeSample
 }
 
@@ -18,9 +18,10 @@ export interface LandingFeature {
   body: string
 }
 
-export interface LandingMetric {
-  value: string
-  label: string
+export interface LandingCapability {
+  icon: string
+  title: string
+  body: string
 }
 
 export interface LandingCodeSample {

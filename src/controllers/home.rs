@@ -11,9 +11,10 @@ pub struct LandingFeature {
 }
 
 #[derive(Serialize)]
-pub struct LandingMetric {
-    pub value: String,
-    pub label: String,
+pub struct LandingCapability {
+    pub icon: String,
+    pub title: String,
+    pub body: String,
 }
 
 #[derive(Serialize)]
@@ -27,7 +28,7 @@ pub struct HomeProps {
     pub headline: String,
     pub subheadline: String,
     pub features: Vec<LandingFeature>,
-    pub metrics: Vec<LandingMetric>,
+    pub capabilities: Vec<LandingCapability>,
     pub sample: LandingCodeSample,
 }
 
@@ -61,18 +62,36 @@ pub async fn index(req: Request) -> Response {
                     body: "Docs, article publishing, RSS, and RBAC are planned as first-party kit domains instead of bolt-ons.".to_string(),
                 },
             ],
-            metrics: vec![
-                LandingMetric {
-                    value: "8765".to_string(),
-                    label: "backend dev port".to_string(),
+            capabilities: vec![
+                LandingCapability {
+                    icon: "mdi-account-check-outline".to_string(),
+                    title: "Accounts wired".to_string(),
+                    body: "Registration, login, sessions, verification, reset links, and profile edits are ready to extend.".to_string(),
                 },
-                LandingMetric {
-                    value: "5765".to_string(),
-                    label: "Vite dev port".to_string(),
+                LandingCapability {
+                    icon: "mdi-book-open-page-variant-outline".to_string(),
+                    title: "Docs generated".to_string(),
+                    body: "Markdown docs build into searchable chapters with navigation, excerpts, and anchored headings.".to_string(),
                 },
-                LandingMetric {
-                    value: "1".to_string(),
-                    label: "public asset fallback".to_string(),
+                LandingCapability {
+                    icon: "mdi-rss".to_string(),
+                    title: "Publishing included".to_string(),
+                    body: "Articles, categories, tags, drafts, scheduled publishing, and the RSS feed share one content path.".to_string(),
+                },
+                LandingCapability {
+                    icon: "mdi-account-group-outline".to_string(),
+                    title: "Profiles included".to_string(),
+                    body: "Member pages, contribution counts, badges, and social links establish the community layer.".to_string(),
+                },
+                LandingCapability {
+                    icon: "mdi-view-dashboard-outline".to_string(),
+                    title: "Role dashboards".to_string(),
+                    body: "Authenticated users and admins land in purpose-built screens instead of generic placeholder pages.".to_string(),
+                },
+                LandingCapability {
+                    icon: "mdi-tag-multiple-outline".to_string(),
+                    title: "Taxonomy admin".to_string(),
+                    body: "Categories, topics, and tags can be maintained through the admin UI with visible slugs and sorting.".to_string(),
                 },
             ],
             sample: LandingCodeSample {

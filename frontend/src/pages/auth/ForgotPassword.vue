@@ -18,8 +18,8 @@ function submit() {
 </script>
 
 <template>
-  <v-container class="d-flex justify-center py-12">
-    <v-card class="w-100" max-width="448">
+  <v-container class="auth-page">
+    <v-card class="auth-card">
       <v-card-item class="text-center pt-6">
         <BrandMark />
         <v-card-title class="mt-3">Forgot your password?</v-card-title>
@@ -54,7 +54,7 @@ function submit() {
         </v-form>
       </v-card-text>
 
-      <v-card-actions class="justify-center pb-4">
+      <v-card-actions class="auth-card__links justify-center pb-4">
         <Link href="/login" class="text-primary text-body-2">Back to sign in</Link>
       </v-card-actions>
     </v-card>
