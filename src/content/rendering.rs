@@ -199,10 +199,31 @@ fn has_math(markdown: &str, html: &str) -> bool {
 }
 
 fn has_math_code_fence(markdown: &str) -> bool {
-    markdown.lines().any(|line| {
+    let mut open_fence = None;
+
+    for line in markdown.lines() {
+        if is_indented_code_line(line) {
+            continue;
+        }
+
         let trimmed = line.trim_start().to_ascii_lowercase();
-        trimmed.starts_with("```math") || trimmed.starts_with("~~~math")
-    })
+        if let Some(marker) = open_fence {
+            if trimmed.starts_with(marker) {
+                open_fence = None;
+            }
+            continue;
+        }
+
+        if let Some(marker) = fence_marker(&trimmed) {
+            let info = trimmed[marker.len()..].trim_start();
+            if info.starts_with("math") {
+                return true;
+            }
+            open_fence = Some(marker);
+        }
+    }
+
+    false
 }
 
 fn has_tex_math_delimiters(markdown: &str) -> bool {
@@ -483,6 +504,16 @@ mod tests {
 
         let actual_math = render_content("Einstein wrote $E = mc^2$.").expect("render math");
         assert!(actual_math.has_math);
+    }
+
+    #[test]
+    fn ignores_literal_math_fence_inside_code_fence() {
+        let literal_math_fence =
+            render_content("~~~markdown\n```math\nx\n```\n~~~").expect("render literal fence");
+        assert!(!literal_math_fence.has_math);
+
+        let real_math_fence = render_content("```math\nx\n```").expect("render math fence");
+        assert!(real_math_fence.has_math);
     }
 
     #[test]

@@ -36,7 +36,7 @@ pub fn render_article_content(
         slugify_heading(slug)
     };
 
-    let excerpt = article_excerpt(&rendered.excerpt, heading_title.as_deref());
+    let excerpt = rendered.excerpt.trim().to_string();
     let safe_description = rendered.description.trim();
     let description = if safe_description.is_empty()
         || heading_title
@@ -58,33 +58,6 @@ pub fn render_article_content(
         has_code: rendered.has_code,
         has_math: rendered.has_math,
     })
-}
-
-fn article_excerpt(raw: &str, heading_title: Option<&str>) -> String {
-    let raw = raw.trim();
-    let Some(title) = heading_title
-        .map(str::trim)
-        .filter(|title| !title.is_empty())
-    else {
-        return raw.to_string();
-    };
-
-    if raw == title {
-        return String::new();
-    }
-
-    let Some(rest) = raw.strip_prefix(title) else {
-        return raw.to_string();
-    };
-    let Some(first) = rest.chars().next() else {
-        return String::new();
-    };
-    if !(first.is_whitespace() || matches!(first, ':' | '-' | '–' | '—')) {
-        return raw.to_string();
-    }
-
-    rest.trim_start_matches(|ch: char| ch.is_whitespace() || matches!(ch, ':' | '-' | '–' | '—'))
-        .to_string()
 }
 
 pub fn normalize_tags(tags: impl IntoIterator<Item = impl AsRef<str>>) -> Vec<String> {
@@ -143,6 +116,19 @@ mod tests {
         )
         .expect("render prose article content");
 
+        assert_eq!(rendered.description, rendered.excerpt);
+    }
+
+    #[test]
+    fn article_excerpt_keeps_prose_that_starts_with_heading_word() {
+        let rendered = render_article_content(
+            "Fallback Title",
+            "",
+            "# Overview\n\nOverview explains the release.",
+        )
+        .expect("render article content");
+
+        assert_eq!(rendered.excerpt, "Overview explains the release.");
         assert_eq!(rendered.description, rendered.excerpt);
     }
 
