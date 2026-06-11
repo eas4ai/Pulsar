@@ -328,8 +328,8 @@ async fn author_can_create_draft_publish_and_appear_on_blog() {
         .await
         .expect("lookup created article")
         .expect("created article exists");
-    assert!(article.has_code == false);
-    assert!(article.has_math == false);
+    assert!(!article.has_code);
+    assert!(!article.has_math);
     assert_eq!(article.source, "first_party");
     assert_eq!(article.tags_vec(), vec!["pulsar", "launch"]);
 
