@@ -59,7 +59,7 @@ cargo run --bin console -- articles:seed
 Promote users for authoring with:
 
 ```bash
-cargo run --bin console -- users:promote user@example.com author
+cargo run --bin console -- users:promote --email user@example.com --role author
 ```
 
 ## Auth and Authoring
