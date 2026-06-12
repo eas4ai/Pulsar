@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { useForm } from '@inertiajs/vue3'
-import type { ProfileFormState } from '../../types/inertia-props'
 
 const props = defineProps<{
   name: string

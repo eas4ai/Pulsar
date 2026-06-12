@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useForm } from '@inertiajs/vue3'
-import type { ArticleFormState } from '../../types/inertia-props'
 
 const props = defineProps<{
   article: ArticleFormState

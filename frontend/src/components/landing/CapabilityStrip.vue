@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { LandingCapability } from '../../types/inertia-props'
-
 defineProps<{
   capabilities: LandingCapability[]
 }>()

@@ -37,7 +37,7 @@
 - [ ] Update `normalize_status` to allow `draft`, `submitted`, `changes_requested`, `approved`, `scheduled`, `published`, `archived`, and `rejected`.
 - [ ] Update `Article::published()` and `find_published_by_slug()` to return `status = published` only.
 - [ ] Add model methods `submit`, `request_changes`, `approve`, `schedule`, `publish`, `archive`, and `reject`.
-- [ ] Run `rtk cargo test v2_publishing_flows`.
+- [ ] Run `cargo test v2_publishing_flows`.
 
 ### Task 2: Revision History
 
@@ -71,7 +71,7 @@
 - [ ] Add `POST /dashboard/articles/{id}/autosave` storing draft updates without changing submitted/reviewed states.
 - [ ] Add `frontend/src/pages/contributor/articles/Index.vue`, `Edit.vue`, and `Revisions.vue`.
 - [ ] Keep mobile editor behavior tabbed: write and preview are separate tabs on narrow screens.
-- [ ] Add frontend type coverage through `cd frontend && rtk bun run check`.
+- [ ] Add frontend type coverage through `cd frontend && bun run check`.
 
 ### Task 5: RSS and Static Content Service
 
@@ -86,6 +86,6 @@
 - [ ] Commit with:
 
 ```bash
-rtk git add src tests frontend
-rtk git commit -m "Expand Pulsar V2 publishing workflow"
+git add src tests frontend
+git commit -m "Expand Pulsar V2 publishing workflow"
 ```

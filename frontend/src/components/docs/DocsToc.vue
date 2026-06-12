@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import type { DocsHeading } from '../../types/inertia-props'
 
 const props = defineProps<{
   headings: DocsHeading[]

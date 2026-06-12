@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { LandingFeature } from '../../types/inertia-props'
-
 defineProps<{
   features: LandingFeature[]
 }>()

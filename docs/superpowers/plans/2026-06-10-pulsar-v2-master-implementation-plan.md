@@ -42,7 +42,7 @@
 
 ## Cross-Domain Rules
 
-- Use `rtk` for commands: `rtk cargo`, `rtk bun`, `rtk git`.
+- Use standard project commands: `cargo`, `bun`, `git`.
 - Do not introduce CI requirements into Pulsar V2.
 - Do not add billing, subscriptions, organizations, production analytics, or commercial SaaS features.
 - Keep public copy unbranded. The downstream brand site can rename surfaces later.
@@ -56,18 +56,18 @@
 Run these after each domain lands:
 
 ```bash
-rtk cargo check
-rtk bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test'
-cd frontend && rtk bun run check
-cd frontend && rtk bun run build
+cargo check
+bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test'
+cd frontend && bun run check
+cd frontend && bun run build
 ```
 
 Run these after content or seed changes:
 
 ```bash
-rtk cargo run --bin console -- docs:build
-rtk cargo run --bin console -- v2:seed-demo
-rtk cargo run --bin console -- v2:reset-demo
+cargo run --bin console -- docs:build
+cargo run --bin console -- v2:seed-demo
+cargo run --bin console -- v2:reset-demo
 ```
 
 ## Completion Criteria

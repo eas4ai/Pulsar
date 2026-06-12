@@ -6,7 +6,7 @@ Pulsar is a Rust/Suprnova backend with a Vue/Vuetify Inertia frontend. Backend s
 
 ## Build, Test, and Development Commands
 
-Prefix shell commands with `rtk`. Use `rtk cargo run --bin pulsar` to run the backend on port `8765`. Use `cd frontend && rtk bun run dev -- --host 127.0.0.1 --port 5765` for Vite. Build docs with `rtk cargo run --bin console -- docs:build`; seed articles with `rtk cargo run --bin console -- articles:seed`. Run the full Rust suite with `rtk bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test'`. Run frontend checks with `cd frontend && rtk bun run check && rtk bun run build`.
+Use `cargo run --bin pulsar` to run the backend on port `8765`. Use `cd frontend && bun run dev -- --host 127.0.0.1 --port 5765` for Vite. Build docs with `cargo run --bin console -- docs:build`; seed articles with `cargo run --bin console -- articles:seed`. Run the full Rust suite with `cargo test`. Run frontend checks with `cd frontend && bun run check && bun run build`.
 
 ## Coding Style & Naming Conventions
 

@@ -39,7 +39,7 @@
   - `ShowcaseMetadata { screenshot_url, project_owner, built_with }`
   - `MediaMetadata { duration_seconds, provider, thumbnail_url }`
 - [ ] Implement `validate_resource_metadata(resource_type, metadata_json)` returning typed validation errors for missing type-specific fields.
-- [ ] Run `rtk cargo test resource_metadata`.
+- [ ] Run `cargo test resource_metadata`.
 
 ### Task 2: Submission and Review Workflow
 
@@ -89,14 +89,14 @@
 - [ ] Run:
 
 ```bash
-rtk cargo check
-rtk bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test v2_resource_directory_flows -- --nocapture'
-cd frontend && rtk bun run check
+cargo check
+bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test v2_resource_directory_flows -- --nocapture'
+cd frontend && bun run check
 ```
 
 - [ ] Commit with:
 
 ```bash
-rtk git add src tests frontend
-rtk git commit -m "Add Pulsar V2 resource directory"
+git add src tests frontend
+git commit -m "Add Pulsar V2 resource directory"
 ```

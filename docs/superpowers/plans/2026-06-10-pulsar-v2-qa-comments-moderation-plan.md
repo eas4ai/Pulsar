@@ -82,21 +82,21 @@
 - [ ] Build moderator pages matching the UI/UX spec: dashboard, content review, resource review, question/report queue, comment report queue, user report queue, spam review, recent decisions.
 - [ ] The queue row props include severity, target type, target title, author, reporter, age, and current status.
 - [ ] Avoid admin-only wording in moderator screens; moderators review and decide, admins configure.
-- [ ] Run `cd frontend && rtk bun run check && rtk bun run build`.
+- [ ] Run `cd frontend && bun run check && bun run build`.
 
 ### Task 5: Commit
 
 - [ ] Run:
 
 ```bash
-rtk cargo check
-rtk bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test v2_qa_comments_moderation_flows -- --nocapture'
-cd frontend && rtk bun run check
+cargo check
+bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test v2_qa_comments_moderation_flows -- --nocapture'
+cd frontend && bun run check
 ```
 
 - [ ] Commit with:
 
 ```bash
-rtk git add src tests frontend
-rtk git commit -m "Add Pulsar V2 community support and moderation"
+git add src tests frontend
+git commit -m "Add Pulsar V2 community support and moderation"
 ```

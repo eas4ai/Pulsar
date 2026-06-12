@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { ArticleSummary } from '../../types/inertia-props'
-
 defineProps<{
   article: ArticleSummary
 }>()

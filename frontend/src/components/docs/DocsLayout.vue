@@ -2,7 +2,6 @@
 import { computed } from 'vue'
 import DocsSearch from './DocsSearch.vue'
 import DocsToc from './DocsToc.vue'
-import type { DocsCatalog, DocsChapter } from '../../types/inertia-props'
 
 const props = defineProps<{
   catalog: DocsCatalog

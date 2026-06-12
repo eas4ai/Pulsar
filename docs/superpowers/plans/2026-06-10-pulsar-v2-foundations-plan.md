@@ -39,7 +39,7 @@
 - [ ] Add `#[model]` structs matching those columns. Each model exposes `find_by_slug`, and `Profile` exposes `find_by_handle`, `find_by_user_id`, and `ensure_for_user`.
 - [ ] Register model exports in `src/models/mod.rs`.
 - [ ] Call `Profile::ensure_for_user(&user)` in the registration success path in `src/controllers/auth.rs`.
-- [ ] Run `rtk bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test v2_foundation_flows -- --nocapture'`; expect the profile creation test to pass.
+- [ ] Run `bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test v2_foundation_flows -- --nocapture'`; expect the profile creation test to pass.
 
 ### Task 2: V2 RBAC
 
@@ -52,7 +52,7 @@
   - `users.manage`, `roles.manage`, `taxonomy.manage`, `settings.manage`
 - [ ] Assign all permissions to `admin`; assign review/moderation permissions to `moderator`; assign article publish/review to `author`; assign submission permissions to `contributor`; assign create/comment/bookmark permissions to `member`.
 - [ ] Add tests in `tests/v2_foundation_flows.rs` proving a member cannot open `/admin/taxonomy`, a moderator can open moderation queues after that plan lands, and an admin can open `/admin/users`.
-- [ ] Run `rtk cargo test rbac`.
+- [ ] Run `cargo test rbac`.
 
 ### Task 3: Public Profiles and Members
 
@@ -61,7 +61,7 @@
 - [ ] Add Vue pages `frontend/src/pages/members/Index.vue` and `Show.vue` using `AppLayout`.
 - [ ] Extend `/profile` settings so users can edit display name, handle, bio, avatar URL, website, GitHub URL, location, and timezone.
 - [ ] Add tests for profile update validation: handle required, slug-safe, unique, and visible at `/members/{handle}`.
-- [ ] Run `rtk cargo test profile` and `cd frontend && rtk bun run check`.
+- [ ] Run `cargo test profile` and `cd frontend && bun run check`.
 
 ### Task 4: Taxonomy Admin and Public Taxonomy Pages
 
@@ -84,7 +84,7 @@
 - [ ] Move article rendering through this service while keeping the current `render_article_content` API intact.
 - [ ] Extend rendering behavior inspired by `rikhuijzer/fx`: GFM tables, math detection, footnote detection, stable heading ids, short preview extraction, title/description extraction, and RSS-safe HTML.
 - [ ] Add unit tests for tables, math markers, footnotes, heading ids, and description extraction in `src/content/rendering.rs`.
-- [ ] Run `rtk cargo test content::rendering`.
+- [ ] Run `cargo test content::rendering`.
 
 ### Task 6: Commit
 
@@ -92,6 +92,6 @@
 - [ ] Commit with:
 
 ```bash
-rtk git add src tests frontend
-rtk git commit -m "Add Pulsar V2 foundations"
+git add src tests frontend
+git commit -m "Add Pulsar V2 foundations"
 ```

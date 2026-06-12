@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { router } from '@inertiajs/vue3'
-import type { DocsSearchEntry } from '../../types/inertia-props'
 
 const props = defineProps<{
   entries: DocsSearchEntry[]

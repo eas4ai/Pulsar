@@ -1,6 +1,4 @@
 <script setup lang="ts">
-import type { LandingCodeSample } from '../../types/inertia-props'
-
 defineProps<{
   sample: LandingCodeSample
 }>()

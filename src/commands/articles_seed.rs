@@ -57,7 +57,7 @@ fn sample_articles(author_id: i64) -> Vec<NewArticle> {
 Pulsar now includes first-party articles with rendered Markdown, RSS, and author-protected editing.
 
 ```rust
-rtk cargo run --bin console -- articles:seed
+cargo run --bin console -- articles:seed
 ```
 
 Authors can publish release notes without leaving the app shell."#

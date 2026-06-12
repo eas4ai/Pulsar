@@ -16,11 +16,11 @@ such as `suprnova.app`.
 ## Local Setup
 
 Copy `.env.example` to `.env`, then generate an app key before running outside
-local test mode:
+local test mode. Copy the generated value into `APP_KEY`:
 
 ```bash
 cp .env.example .env
-rtk cargo run --bin console -- suprnova key:generate
+openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 ```
 
 Default development ports are intentionally uncommon:
@@ -28,11 +28,17 @@ Default development ports are intentionally uncommon:
 - Backend: `http://localhost:8765`
 - Vite: `http://localhost:5765`
 
-Run the backend and frontend in separate terminals:
+Run both development servers through the Suprnova CLI:
 
 ```bash
-rtk cargo run --bin pulsar
-cd frontend && rtk bun run dev -- --host 127.0.0.1 --port 5765
+suprnova serve --port 8765 --frontend-port 5765
+```
+
+Or run the backend and frontend in separate terminals:
+
+```bash
+cargo run --bin pulsar
+cd frontend && bun run dev -- --host 127.0.0.1 --port 5765
 ```
 
 ## Content Workflows
@@ -41,19 +47,19 @@ Documentation lives in `content/docs/*.md` and is compiled to
 `storage/content/docs`:
 
 ```bash
-rtk cargo run --bin console -- docs:build
+cargo run --bin console -- docs:build
 ```
 
 Articles are stored in the database. Seed release examples with:
 
 ```bash
-rtk cargo run --bin console -- articles:seed
+cargo run --bin console -- articles:seed
 ```
 
 Promote users for authoring with:
 
 ```bash
-rtk cargo run --bin console -- users:promote user@example.com author
+cargo run --bin console -- users:promote user@example.com author
 ```
 
 ## Auth and Authoring
@@ -69,10 +75,10 @@ published content to `/blog` and `/feed.xml`.
 Run these before handing work off:
 
 ```bash
-rtk cargo run --bin console -- docs:build
-rtk cargo run --bin console -- articles:seed
-rtk bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test'
-cd frontend && rtk bun run check && rtk bun run build
+cargo run --bin console -- docs:build
+cargo run --bin console -- articles:seed
+cargo test
+cd frontend && bun run check && bun run build
 ```
 
 ## Key Routes

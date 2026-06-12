@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import DocsLayout from '../../components/docs/DocsLayout.vue'
-import type { DocsProps } from '../../types/inertia-props'
+import type { DocsPageProps } from '../../types/inertia-props'
 
-defineProps<DocsProps>()
+defineProps<DocsPageProps>()
 </script>
 
 <template>

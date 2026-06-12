@@ -88,16 +88,16 @@
 - [ ] Run:
 
 ```bash
-rtk cargo run --bin console -- docs:build
-rtk cargo run --bin console -- v2:reset-demo
-rtk cargo check
-rtk bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test'
-cd frontend && rtk bun run check && rtk bun run build
+cargo run --bin console -- docs:build
+cargo run --bin console -- v2:reset-demo
+cargo check
+bash -lc 'RUSTC=$(rustup which rustc) $(rustup which cargo) test'
+cd frontend && bun run check && bun run build
 ```
 
 - [ ] Commit with:
 
 ```bash
-rtk git add src tests frontend docs README.md AGENTS.md
-rtk git commit -m "Complete Pulsar V2 dashboards discovery ops and UI"
+git add src tests frontend docs README.md AGENTS.md
+git commit -m "Complete Pulsar V2 dashboards discovery ops and UI"
 ```

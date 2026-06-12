@@ -1,11 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { router, useForm } from '@inertiajs/vue3'
-import type {
-  AdminTagRow,
-  AdminTaxonomyProps,
-  AdminTaxonomyTermRow,
-} from '../../../types/inertia-props'
+import type { AdminTaxonomyProps } from '../../../types/inertia-props'
 
 defineProps<AdminTaxonomyProps>()
 
