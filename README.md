@@ -80,6 +80,11 @@ Members cannot access article authoring. Users with the `author` or `admin`
 role can use `/admin/articles`, create drafts, publish articles, and feed
 published content to `/blog` and `/feed.xml`.
 
+Admins also get two management surfaces, each gated by a permission and
+fail-closed for everyone else: `/admin/users` is a member directory showing
+each account's verification state and assigned roles, and `/moderation` is a
+review queue of draft articles awaiting publication.
+
 ## Verification Gates
 
 Run these before handing work off:
@@ -99,3 +104,4 @@ cd frontend && bun run check && bun run build
 - Authenticated: `/dashboard`, `/profile`, `/verify-email`
 - Authoring: `/admin/articles`, `/admin/articles/create`,
   `/admin/articles/{id}/edit`
+- Admin: `/admin/users` (member directory), `/moderation` (draft review queue)
