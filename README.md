@@ -1,9 +1,17 @@
 # Pulsar
 
-Pulsar is a Suprnova starter kit for shipping a product site with account
-management, generated documentation, articles, RSS, role-gated authoring, and a
-Vue/Vuetify frontend. It is intended to be the source kit for downstream apps
-such as `suprnova.app`.
+Pulsar is a [Suprnova](https://github.com/entrepeneur4lyf/suprnova) starter kit
+for shipping a product site with account management, generated documentation,
+articles, RSS, role-gated authoring, and a Vue/Vuetify frontend. It is intended
+to be the source kit for downstream apps such as `suprnova.app`.
+
+### Part of the Suprnova kit family
+
+Pulsar is the full product-site kit. Want just authentication?
+**[Nebula](https://github.com/entrepeneur4lyf/Nebula)** is the Breeze-tier kit —
+register, email verification, login, password reset, and profile management on
+Inertia 3 + Svelte 5. See every kit in the
+[Suprnova manual](https://github.com/entrepeneur4lyf/suprnova/blob/main/manual/starter-kits.md).
 
 ## Stack
 
