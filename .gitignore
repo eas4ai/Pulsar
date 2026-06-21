@@ -1,6 +1,5 @@
 # Rust
 /target
-Cargo.lock
 database.db
 
 # Node
@@ -13,10 +12,13 @@ frontend/dist
 /docs/specs
 .worktrees/
 
-# Local reference material
+# Local reference material + AI assistant scope notes — not part of the kit
 reference/
 HANDOFF.md
 .superpowers/
+.claude/
+CLAUDE.md
+AGENTS.md
 
 # IDE
 .idea
