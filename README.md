@@ -1,3 +1,5 @@
+![Pulsar — a Suprnova starter kit](docs/header.jpg)
+
 # Pulsar
 
 Pulsar is a [Suprnova](https://github.com/entrepeneur4lyf/suprnova) starter kit
