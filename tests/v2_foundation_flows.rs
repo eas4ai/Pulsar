@@ -212,10 +212,14 @@ mod v2_foundation_flows {
         let mut client = Client::new(addr);
         let email = "profile-failure@pulsar.test";
 
-        <Profile as Model>::create(attrs! {
-            user_id: 999_i64,
-            handle: "user-1",
-            display_name: "Handle Collision",
+        // `user_id` is guarded, so this fixture sets it through the trusted
+        // unguarded path the same way `ensure_for_user` does.
+        suprnova::unguarded(|| {
+            <Profile as Model>::create(attrs! {
+                user_id: 999_i64,
+                handle: "user-1",
+                display_name: "Handle Collision",
+            })
         })
         .await
         .expect("create profile handle collision");
@@ -851,30 +855,38 @@ mod v2_foundation_flows {
             .await
             .expect("create other user");
 
-        let first = <ReputationEvent as Model>::create(attrs! {
-            user_id: user.id,
-            event_type: "article_published",
-            target_type: "Article",
-            target_id: 10_i64,
-            weight: 5,
+        // `user_id` is guarded, so these fixtures set it through the trusted
+        // unguarded path (the real write paths do likewise).
+        let first = suprnova::unguarded(|| {
+            <ReputationEvent as Model>::create(attrs! {
+                user_id: user.id,
+                event_type: "article_published",
+                target_type: "Article",
+                target_id: 10_i64,
+                weight: 5,
+            })
         })
         .await
         .expect("create first event");
-        let second = <ReputationEvent as Model>::create(attrs! {
-            user_id: user.id,
-            event_type: "comment_featured",
-            target_type: "Comment",
-            target_id: 20_i64,
-            weight: 3,
+        let second = suprnova::unguarded(|| {
+            <ReputationEvent as Model>::create(attrs! {
+                user_id: user.id,
+                event_type: "comment_featured",
+                target_type: "Comment",
+                target_id: 20_i64,
+                weight: 3,
+            })
         })
         .await
         .expect("create second event");
-        <ReputationEvent as Model>::create(attrs! {
-            user_id: other.id,
-            event_type: "other_user_event",
-            target_type: "Article",
-            target_id: 30_i64,
-            weight: 1,
+        suprnova::unguarded(|| {
+            <ReputationEvent as Model>::create(attrs! {
+                user_id: other.id,
+                event_type: "other_user_event",
+                target_type: "Article",
+                target_id: 30_i64,
+                weight: 1,
+            })
         })
         .await
         .expect("create other user event");
@@ -1661,6 +1673,161 @@ mod v2_foundation_flows {
         assert_eq!(
             resp.status, 200,
             "admin should reach users foundation surface: {}",
+            resp.body
+        );
+    }
+
+    // ── Task #12: mass-assignment hardening ────────────────────────────────
+
+    #[tokio::test]
+    async fn ownership_columns_cannot_be_mass_assigned() {
+        let _harness = setup().await;
+
+        // `user_id` is guarded (removed from `fillable`), so the raw mass
+        // assignment path must NOT honor the injected ownership id. This goes
+        // through `Profile::create` directly, NOT the trusted `ensure_for_user`
+        // wrapper that flips the guard off. The injected `user_id` is silently
+        // discarded by the fillable filter, leaving the column unset — which the
+        // schema (NOT NULL, no default) rejects, so the create fails rather than
+        // ever persisting the attacker-controlled owner.
+        let result = <Profile as Model>::create(attrs! {
+            user_id: 999_i64,
+            handle: "mass-assign-guard",
+            display_name: "Mass Assign Guard",
+        })
+        .await;
+
+        assert!(
+            result.is_err(),
+            "mass-assigning the guarded user_id must not produce a persisted row: {result:?}"
+        );
+        assert!(
+            Profile::find_by_user_id(999)
+                .await
+                .expect("lookup injected owner")
+                .is_none(),
+            "no profile may be owned by the attacker-injected user_id"
+        );
+
+        // The trusted constructor sets `user_id` explicitly through
+        // `unguarded`, so it DOES persist the real owner.
+        let owner = User::create("Guard Owner", "guard-owner@pulsar.test", "secretpass")
+            .await
+            .expect("create owner");
+        let profile = Profile::ensure_for_user(&owner)
+            .await
+            .expect("ensure_for_user sets user_id via unguarded");
+        assert_eq!(
+            profile.user_id, owner.id,
+            "the trusted unguarded path still sets the real owner id"
+        );
+    }
+
+    // ── Task #13: brute-force throttle on POST /login ──────────────────────
+
+    #[tokio::test]
+    async fn repeated_failed_logins_are_throttled() {
+        let mut harness = setup().await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+
+        // Prime the CSRF cookie so the throttle (not CSRF) is what gates us.
+        let page = client.get("/login").await;
+        assert_eq!(page.status, 200, "GET /login should set CSRF cookie");
+
+        // The login throttle allows 20 attempts per minute; the 21st must 429.
+        let mut last = 0;
+        for _ in 0..21 {
+            let resp = client
+                .post_json(
+                    "/login",
+                    json!({
+                        "email": "nobody@pulsar.test",
+                        "password": "wrong",
+                        "remember": false,
+                    }),
+                )
+                .await;
+            last = resp.status;
+        }
+
+        assert_eq!(
+            last, 429,
+            "the 21st failed login must be rate limited (got {last})"
+        );
+    }
+
+    // ── Task #14: admin/users + moderation access + content ─────────────────
+
+    #[tokio::test]
+    async fn admin_users_page_renders_for_admin() {
+        let mut harness = setup().await;
+        verified_admin("Page Admin", "page-admin@pulsar.test").await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "page-admin@pulsar.test").await;
+
+        let resp = client.get("/admin/users").await;
+        assert_eq!(
+            resp.status, 200,
+            "admin should reach the users page: {}",
+            resp.body
+        );
+        assert!(
+            resp.body.contains("page-admin@pulsar.test"),
+            "users page should list the admin's email: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn admin_users_page_forbidden_for_plain_user() {
+        let mut harness = setup().await;
+        seed_default_roles().await.expect("seed roles");
+        let user = verified_user("Plain Users Viewer", "plain-users@pulsar.test").await;
+        user.assign_role("member").await.expect("assign member");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "plain-users@pulsar.test").await;
+
+        let resp = client.get("/admin/users").await;
+        assert_eq!(
+            resp.status, 403,
+            "a plain user must not reach the admin users page: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn moderation_page_renders_for_admin() {
+        let mut harness = setup().await;
+        verified_admin("Moderation Admin", "moderation-admin@pulsar.test").await;
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "moderation-admin@pulsar.test").await;
+
+        let resp = client.get("/moderation").await;
+        assert_eq!(
+            resp.status, 200,
+            "admin should reach the moderation page: {}",
+            resp.body
+        );
+    }
+
+    #[tokio::test]
+    async fn moderation_page_forbidden_for_plain_user() {
+        let mut harness = setup().await;
+        seed_default_roles().await.expect("seed roles");
+        let user = verified_user("Plain Moderation Viewer", "plain-moderation@pulsar.test").await;
+        user.assign_role("member").await.expect("assign member");
+        let addr = harness.spawn_app().await;
+        let mut client = Client::new(addr);
+        login(&mut client, "plain-moderation@pulsar.test").await;
+
+        let resp = client.get("/moderation").await;
+        assert_eq!(
+            resp.status, 403,
+            "a plain user must not reach the moderation page: {}",
             resp.body
         );
     }

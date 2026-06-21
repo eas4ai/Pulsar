@@ -93,3 +93,29 @@ export interface ProfileProps {
   profile: ProfileFormProps;
 }
 
+export interface AdminUserRow {
+  id: number;
+  name: string;
+  email: string;
+  verified: boolean;
+  roles: Array<string>;
+  created_at: string;
+}
+
+export interface AdminUsersIndexProps {
+  users: Array<AdminUserRow>;
+}
+
+export interface ModerationItemRow {
+  id: number;
+  title: string;
+  slug: string;
+  status: string;
+  author_id: number;
+  updated_at: string;
+}
+
+export interface ModerationIndexProps {
+  items: Array<ModerationItemRow>;
+}
+

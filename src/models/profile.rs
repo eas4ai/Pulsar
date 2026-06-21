@@ -11,7 +11,6 @@ pub const DISPLAY_NAME_MAX_LENGTH: usize = 120;
 #[model(
     table = "profiles",
     fillable = [
-        "user_id",
         "handle",
         "display_name",
         "bio",
@@ -64,10 +63,14 @@ impl Profile {
             return Ok(profile);
         }
 
-        match <Self as Model>::create(attrs! {
-            user_id: user.id,
-            handle: default_handle(user),
-            display_name: user.name.clone(),
+        // `user_id` is guarded (out of `fillable`) so request-driven mass
+        // assignment can't set it; this trusted constructor sets it explicitly.
+        match suprnova::unguarded(|| {
+            <Self as Model>::create(attrs! {
+                user_id: user.id,
+                handle: default_handle(user),
+                display_name: user.name.clone(),
+            })
         })
         .await
         {

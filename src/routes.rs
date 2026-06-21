@@ -1,5 +1,6 @@
 use suprnova::{
-    PermissionMiddleware, StaticFiles, delete, fallback, get, group, patch, post, put, routes,
+    PermissionMiddleware, StaticFiles, ThrottleRequestsMiddleware, delete, fallback, get, group,
+    patch, post, put, routes,
 };
 
 use crate::controllers;
@@ -30,9 +31,9 @@ routes! {
     // Guest-only routes (redirect to dashboard if logged in)
     group!("/", {
         get!("/login", controllers::auth::show_login),
-        post!("/login", controllers::auth::login),
+        post!("/login", controllers::auth::login).middleware(ThrottleRequestsMiddleware::with(20, 1, "login")),
         get!("/register", controllers::auth::show_register),
-        post!("/register", controllers::auth::register),
+        post!("/register", controllers::auth::register).middleware(ThrottleRequestsMiddleware::with(10, 1, "register")),
         get!("/forgot-password", controllers::password_reset::show_request),
         post!("/forgot-password", controllers::password_reset::send_link),
         get!("/reset-password", controllers::password_reset::show_reset),

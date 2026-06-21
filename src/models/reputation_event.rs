@@ -7,7 +7,6 @@ use suprnova::{FrameworkError, model};
 #[model(
     table = "reputation_events",
     fillable = [
-        "user_id",
         "event_type",
         "target_type",
         "target_id",

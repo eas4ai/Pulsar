@@ -64,6 +64,13 @@ pub async fn setup() -> Harness {
     Auth::register_provider("users", Arc::new(EloquentUserProvider::<User>::new()))
         .expect("register users provider");
 
+    // The throttle middleware drives the `RateLimiter` facade, which resolves
+    // a `CacheStore` from the container for its attempt counters. Tests
+    // serialize on `TEST_LOCK` but the cache store is process-global, so bind a
+    // fresh in-memory cache per test to keep attempt counters isolated across
+    // cases.
+    App::bind::<dyn suprnova::CacheStore>(Arc::new(suprnova::InMemoryCache::new()));
+
     App::register_inertia_shared(Arc::new(pulsar::bootstrap::AuthShare));
 
     Harness {

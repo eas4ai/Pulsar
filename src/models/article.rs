@@ -20,7 +20,6 @@ const SOURCE_FIRST_PARTY: &str = "first_party";
         "excerpt",
         "description",
         "plain_text",
-        "author_id",
         "status",
         "source",
         "category",
@@ -75,22 +74,26 @@ impl Article {
         let published_at = resolve_published_at(&status, None, input.published_at);
         let tags = normalize_tags(&input.tags);
 
-        <Self as Model>::create(attrs! {
-            title: rendered.title,
-            slug: rendered.slug,
-            body_markdown: input.body_markdown,
-            body_html: rendered.html,
-            excerpt: rendered.excerpt,
-            description: rendered.description,
-            plain_text: rendered.plain_text,
-            author_id: input.author_id,
-            status: status,
-            source: source,
-            category: input.category.trim().to_string(),
-            tags: encode_tags(&tags),
-            has_code: rendered.has_code,
-            has_math: rendered.has_math,
-            published_at: published_at,
+        // `author_id` is guarded (out of `fillable`) so request-driven mass
+        // assignment can't set it; this trusted constructor sets it explicitly.
+        suprnova::unguarded(|| {
+            <Self as Model>::create(attrs! {
+                title: rendered.title,
+                slug: rendered.slug,
+                body_markdown: input.body_markdown,
+                body_html: rendered.html,
+                excerpt: rendered.excerpt,
+                description: rendered.description,
+                plain_text: rendered.plain_text,
+                author_id: input.author_id,
+                status: status,
+                source: source,
+                category: input.category.trim().to_string(),
+                tags: encode_tags(&tags),
+                has_code: rendered.has_code,
+                has_math: rendered.has_math,
+                published_at: published_at,
+            })
         })
         .await
     }
