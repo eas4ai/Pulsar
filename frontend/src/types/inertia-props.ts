@@ -5,23 +5,15 @@ export interface AdminArticlesIndexProps {
   articles: Array<AdminArticleRow>;
 }
 
-export interface TagShowProps {
-  tag: TaxonomyDetail;
+export interface LoginProps {
 }
 
-export interface RegisterProps {
+export interface CategoryShowProps {
+  category: TaxonomyDetail;
 }
 
-export interface TopicShowProps {
-  topic: TaxonomyDetail;
-}
-
-export interface TopicsIndexProps {
-  topics: Array<TaxonomyListItem>;
-}
-
-export interface MembersIndexProps {
-  members: Array<MemberSummary>;
+export interface ArticlesIndexProps {
+  articles: Array<ArticleSummary>;
 }
 
 export interface AdminTaxonomyProps {
@@ -31,25 +23,12 @@ export interface AdminTaxonomyProps {
   errors: Value;
 }
 
-export interface ForgotPasswordProps {
+export interface VerifyEmailProps {
+  status: string | null;
 }
 
-export interface CategoryShowProps {
-  category: TaxonomyDetail;
-}
-
-export interface ArticleShowProps {
-  article: ArticleDetail;
-}
-
-export interface ProfileProps {
-  name: string;
-  email: string;
-  email_verified: boolean;
-  profile: ProfileFormProps;
-}
-
-export interface LoginProps {
+export interface ResetPasswordProps {
+  token: string;
 }
 
 export interface HomeProps {
@@ -60,12 +39,9 @@ export interface HomeProps {
   sample: LandingCodeSample;
 }
 
-export interface ArticlesIndexProps {
-  articles: Array<ArticleSummary>;
-}
-
-export interface ResetPasswordProps {
-  token: string;
+export interface AdminArticleEditProps {
+  article: ArticleFormState;
+  errors: Value;
 }
 
 export interface DashboardProps {
@@ -75,19 +51,45 @@ export interface DashboardProps {
   account: AccountStatus;
 }
 
-export interface VerifyEmailProps {
-  status: string | null;
-}
-
-export interface AdminArticleEditProps {
-  article: ArticleFormState;
-  errors: Value;
-}
-
 export interface MemberShowProps {
   member: MemberSummary;
 }
+
+export interface TagShowProps {
+  tag: TaxonomyDetail;
+}
+
+export interface MembersIndexProps {
+  members: Array<MemberSummary>;
+}
+
+export interface RegisterProps {
+}
+
+export interface ArticleShowProps {
+  article: ArticleDetail;
+}
+
 export interface DocsPageProps {
   catalog: DocsCatalog;
   chapter: DocsChapter;
 }
+
+export interface ForgotPasswordProps {
+}
+
+export interface TopicShowProps {
+  topic: TaxonomyDetail;
+}
+
+export interface TopicsIndexProps {
+  topics: Array<TaxonomyListItem>;
+}
+
+export interface ProfileProps {
+  name: string;
+  email: string;
+  email_verified: boolean;
+  profile: ProfileFormProps;
+}
+
