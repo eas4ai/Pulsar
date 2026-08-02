@@ -119,7 +119,8 @@ pub async fn register() {
         | suprnova::Environment::Testing => InertiaConfig::new(),
         _ => InertiaConfig::new().production(),
     };
-    Inertia::install(&inertia_config);
+    Inertia::install(&inertia_config)
+        .expect("Inertia install failed — under `.production()` this fails closed when the frontend manifest has not been built");
 
     // Share the authenticated user (`auth.user`) on every Inertia
     // response so the layout can render the user menu without each
