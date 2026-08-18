@@ -41,16 +41,16 @@ routes! {
     }).middleware(middleware::authenticate::guest()),
 
     // Authenticated, verification NOT required. An unverified-but-logged-in
-    // user must be able to view the notice, resend the link, and log out — so
+    // user must be able to view the notice, resend the link, and log out - so
     // these stay off the `verified` gate. (The verify-token endpoint itself is
-    // public, above — it needs no session.)
+    // public, above - it needs no session.)
     group!("/", {
         get!("/verify-email", controllers::verify_email::show_notice),
         post!("/email/verification-notification", controllers::verify_email::resend),
         post!("/logout", controllers::auth::logout),
 
         // Self-service profile management. Kept off the `verified` gate so an
-        // unverified-but-logged-in user can still update their details — and,
+        // unverified-but-logged-in user can still update their details - and,
         // by changing their email, re-trigger verification.
         get!("/profile", controllers::profile::show),
         patch!("/profile", controllers::profile::update),

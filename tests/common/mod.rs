@@ -14,6 +14,6 @@ pub use http::{Client, Harness, Resp, setup, spawned_client};
 /// process-global mail transport, and the DB / auth-manager bindings live in
 /// the process-global `App` container (spawned server tasks resolve from
 /// there). Any test that installs container bindings or fakes the mailer must
-/// hold this lock for its full duration — concurrent holders would observe
+/// hold this lock for its full duration - concurrent holders would observe
 /// each other's transports and connections.
 pub static TEST_LOCK: Mutex<()> = Mutex::const_new(());

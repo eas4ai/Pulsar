@@ -1,10 +1,10 @@
-//! Account-management flow tests for the Pulsar starter kit — request path.
+//! Account-management flow tests for the Pulsar starter kit - request path.
 //!
 //! These drive the kit's **real** HTTP surface: `pulsar::routes::register()`
 //! (the actual `routes!` table, root-prefix `group!("/")` groups, guest /
 //! auth / verified middleware) plus the same global middleware stack
 //! `bootstrap::register()` installs (logging → session → CSRF → include),
-//! served through `suprnova::handle_request` — the framework's in-process
+//! served through `suprnova::handle_request` - the framework's in-process
 //! request surface. Because `hyper::body::Incoming` cannot be built
 //! synthetically, requests travel over an ephemeral loopback socket whose
 //! service fn is `handle_request`, exactly like the framework's own
@@ -23,7 +23,7 @@
 //! (`group!("/")` registered unmatchable `//login` patterns; `redirect!`
 //! resolved literal paths as route names). Both are fixed upstream as of
 //! `95777465` (canonical `join_paths` for group prefixes; literal-shape
-//! dispatch in `redirect!`) — this suite is the consumer-side pin on those
+//! dispatch in `redirect!`) - this suite is the consumer-side pin on those
 //! fixes.
 //!
 //! ## Serial execution
@@ -111,12 +111,12 @@ async fn register_then_verify_email_over_http() {
     let addr = harness.spawn_app().await;
     let mut client = Client::new(addr);
 
-    // Acquire a session + CSRF cookie through the guest-gated register page —
+    // Acquire a session + CSRF cookie through the guest-gated register page -
     // this also proves the root-prefix `group!("/")` routes match over HTTP.
     let resp = client.get("/register").await;
     assert_eq!(resp.status, 200, "GET /register must render: {}", resp.body);
 
-    // Register. The success path is `redirect!("/dashboard")` — the literal
+    // Register. The success path is `redirect!("/dashboard")` - the literal
     // Location pins the framework's literal-redirect dispatch fix.
     let fake = Mail::fake();
     let resp = client
@@ -147,7 +147,7 @@ async fn register_then_verify_email_over_http() {
     let resp = client.get("/verify-email").await;
     assert_eq!(resp.status, 200, "the verify notice must render");
 
-    // Consume the emailed token (public route — the token is the proof).
+    // Consume the emailed token (public route - the token is the proof).
     let resp = client
         .get(&format!("/verify-email/verify?token={token}"))
         .await;
@@ -479,7 +479,7 @@ async fn login_success_redirects_to_literal_dashboard() {
     let resp = client.get("/login").await;
     assert_eq!(resp.status, 200);
 
-    // The login controller's success arm is `redirect!("/dashboard")` — a
+    // The login controller's success arm is `redirect!("/dashboard")` - a
     // string literal with a leading `/`. At framework rev 06b9447f this
     // resolved as a route *name* and 500'd (`Route '/dashboard' not found`);
     // since 95777465 the macro dispatches literal shapes to `Redirect::to`.
@@ -569,7 +569,7 @@ async fn inertia_submissions_render_errors_and_303_redirects() {
     assert_eq!(resp.location(), "/dashboard");
 
     // The shared `auth.user` prop (AuthShare in bootstrap.rs) rides every
-    // page render once authenticated — it is what the layout's user menu
+    // page render once authenticated - it is what the layout's user menu
     // and Dashboard nav link key off.
     let resp = client.get("/dashboard").await;
     assert_eq!(resp.status, 200);
@@ -600,7 +600,7 @@ async fn inertia_submissions_render_errors_and_303_redirects() {
     assert_eq!(resp.location(), "/profile");
 
     // And a failing Inertia PUT re-renders the Profile page with the field
-    // error — wrong current password pins `current_password`.
+    // error - wrong current password pins `current_password`.
     let resp = client
         .inertia_put_json(
             "/profile/password",

@@ -1,4 +1,4 @@
-![Pulsar — a Suprnova starter kit](docs/header.jpg)
+![Pulsar - a Suprnova starter kit](docs/header.jpg)
 
 # Pulsar
 
@@ -10,7 +10,7 @@ to be the source kit for downstream apps such as `suprnova.app`.
 ### Part of the Suprnova kit family
 
 Pulsar is the full product-site kit. Want just authentication?
-**[Nebula](https://github.com/eas4ai/Nebula)** is the Breeze-tier kit —
+**[Nebula](https://github.com/eas4ai/Nebula)** is the Breeze-tier kit -
 register, email verification, login, password reset, and profile management on
 Inertia 3 + Svelte 5. See every kit in the
 [Suprnova manual](https://github.com/eas4ai/suprnova/blob/main/manual/starter-kits.md).

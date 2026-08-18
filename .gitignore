@@ -12,7 +12,7 @@ frontend/dist
 /docs/specs
 .worktrees/
 
-# Local reference material + AI assistant scope notes — not part of the kit
+# Local reference material + AI assistant scope notes - not part of the kit
 reference/
 HANDOFF.md
 .superpowers/

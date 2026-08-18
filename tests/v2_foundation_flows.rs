@@ -1687,7 +1687,7 @@ mod v2_foundation_flows {
         // assignment path must NOT honor the injected ownership id. This goes
         // through `Profile::create` directly, NOT the trusted `ensure_for_user`
         // wrapper that flips the guard off. The injected `user_id` is silently
-        // discarded by the fillable filter, leaving the column unset — which the
+        // discarded by the fillable filter, leaving the column unset - which the
         // schema (NOT NULL, no default) rejects, so the create fails rather than
         // ever persisting the attacker-controlled owner.
         let result = <Profile as Model>::create(attrs! {
