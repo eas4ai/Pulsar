@@ -17,7 +17,7 @@ Inertia 3 + Svelte 5. See every kit in the
 
 ## Stack
 
-- Rust 2024, Suprnova, Tokio, SeaORM, SQLite by default.
+- Rust 2024, Suprnova 2.0.0, Tokio, SeaORM, SQLite by default.
 - Vue 3, Inertia, Vuetify, Vite, and Bun for frontend tooling.
 - Markdown content rendered through Suprnova content helpers.
 - Integration tests drive the real HTTP router through an ephemeral loopback
