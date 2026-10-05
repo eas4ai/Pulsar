@@ -21,9 +21,13 @@ The Vite build writes assets into `public/assets`. The docs build writes JSON ar
 - `DATABASE_URL=<sqlite or postgres url>`
 - `SERVER_HOST=0.0.0.0`
 - `SERVER_PORT=<platform port>`
-- Mail settings for verification and reset links
+- `RATE_LIMIT_DRIVER=redis`
+- `RATE_LIMIT_REDIS_URL=<redis url>`
+- `MAIL_DRIVER=smtp` (or another delivering driver) and mail credentials for verification and reset links
 
 Use `openssl rand -base64 32 | tr '+/' '-_' | tr -d '='` to generate `APP_KEY`.
+
+Production boot rejects the default in-memory rate limiter. Use Redis to share authentication quotas across replicas. For exactly one server process, `RATE_LIMIT_ALLOW_MEMORY_IN_PRODUCTION=true` explicitly permits in-memory limits; those limits reset on restart.
 
 ## Database
 
