@@ -105,3 +105,7 @@ cd frontend && bun run check && bun run build
 - Authoring: `/admin/articles`, `/admin/articles/create`,
   `/admin/articles/{id}/edit`
 - Admin: `/admin/users` (member directory), `/moderation` (draft review queue)
+
+## Upgrading
+
+For the Suprnova 3.2.1 upgrade, follow [UPGRADE.md](UPGRADE.md), including production configuration and rollback steps.
