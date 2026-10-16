@@ -4,5 +4,7 @@
 
 pub mod authenticate;
 mod logging;
+mod public_cache;
 
 pub use logging::LoggingMiddleware;
+pub use public_cache::PublicCacheCookies;

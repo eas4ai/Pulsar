@@ -1,6 +1,6 @@
 [package]
 name = "pulsar"
-version = "2.1.0"
+version = "2.1.1"
 rust-version = "1.94.0"
 edition = "2024"
 description = "A directory starter kit by Suprnova"

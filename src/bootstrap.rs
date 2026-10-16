@@ -113,6 +113,16 @@ pub async fn register() {
 
     // Session middleware (required for authentication)
     let session_config = SessionConfig::from_env();
+
+    // This outer layer removes disposable session/CSRF cookies from public
+    // responses. If another cookie must be delivered, it preserves the cookie
+    // and changes that response to private instead.
+    global_middleware!(middleware::PublicCacheCookies::new(
+        session_config
+            .cookie_prefix
+            .apply(&session_config.cookie_name),
+    ));
+
     global_middleware!(SessionMiddleware::new(session_config));
 
     // CSRF protection (validates tokens on POST/PUT/PATCH/DELETE)

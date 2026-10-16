@@ -1,5 +1,11 @@
 # Upgrade Guide
 
+## Pulsar 2.1.0 → 2.1.1
+
+Release `v2.1.1` prevents publicly cached responses from carrying session or CSRF cookies. Upgrade the application binary and frontend assets normally. No database migration or configuration change is required.
+
+After deployment, request `/favicon.ico` and `/site.webmanifest` without cookies. Both responses should retain `Cache-Control: public, max-age=86400` and omit `Set-Cookie`. Ordinary pages should continue to issue session and CSRF cookies. A public response that must deliver another state cookie is automatically changed to `Cache-Control: private, no-store`.
+
 ## Pulsar 2.0.1 → 2.1.0
 
 Release `v2.1.0` upgrades Suprnova from 3.2.1 to 4.1.0. Rust and frontend versions are 2.1.0. The framework tag resolves to commit `3aa40bd7c266d41d86a21c0eebbbb1d5a2d09d1d` in `Cargo.lock`.

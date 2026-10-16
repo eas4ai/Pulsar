@@ -754,3 +754,25 @@ async fn public_statics_resolve_through_fallback() {
     let stray = client.get("/site.webmanifest.bak").await;
     assert_eq!(stray.status, 404);
 }
+
+#[tokio::test]
+async fn publicly_cached_branding_files_do_not_set_cookies() {
+    let mut harness = setup().await;
+    let addr = harness.spawn_app().await;
+
+    for path in ["/favicon.ico", "/site.webmanifest"] {
+        let mut client = Client::new(addr);
+        let response = client.get(path).await;
+
+        assert_eq!(response.status, 200, "GET {path} must serve");
+        assert_eq!(
+            response.headers.get("cache-control").map(String::as_str),
+            Some("public, max-age=86400"),
+            "{path} should keep its public cache policy"
+        );
+        assert!(
+            !response.headers.contains_key("set-cookie"),
+            "{path} must not combine public caching with Set-Cookie"
+        );
+    }
+}

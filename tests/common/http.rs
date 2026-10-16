@@ -22,7 +22,7 @@ use suprnova::{
     handle_request,
 };
 
-use pulsar::middleware::LoggingMiddleware;
+use pulsar::middleware::{LoggingMiddleware, PublicCacheCookies};
 use pulsar::models::user::User;
 
 /// Held-for-the-test guard: keeps global container bindings installed and
@@ -80,6 +80,10 @@ impl Harness {
     /// the app, listening on an ephemeral loopback address.
     pub async fn spawn_app(&mut self) -> SocketAddr {
         let router = Arc::new(pulsar::routes::register());
+        let session_config = SessionConfig::from_env();
+        let session_cookie = session_config
+            .cookie_prefix
+            .apply(&session_config.cookie_name);
         let registry = Arc::new(
             MiddlewareRegistry::new()
                 .append(SecurityHeaders::from_env().expect("test security header configuration"))
@@ -90,7 +94,8 @@ impl Harness {
                     )
                     .max_age(0),
                 )
-                .append(SessionMiddleware::new(SessionConfig::from_env()))
+                .append(PublicCacheCookies::new(session_cookie))
+                .append(SessionMiddleware::new(session_config))
                 .append(CsrfMiddleware::new())
                 .append(IncludeMiddleware)
                 .append(Inertia303Middleware::new()),
