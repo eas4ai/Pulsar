@@ -1,7 +1,11 @@
 use serde::Serialize;
 use suprnova::{InertiaProps, Request, Response, handler, inertia_response};
 
-use crate::controllers::inertia_config;
+use crate::content::meta::{PageMeta, site_description};
+use crate::content::schema;
+use crate::controllers::{inertia_config, with_page_head};
+
+const HOME_TITLE: &str = "Pulsar - Suprnova product-site starter";
 
 #[derive(Serialize)]
 pub struct LandingFeature {
@@ -34,7 +38,7 @@ pub struct HomeProps {
 
 #[handler]
 pub async fn index(req: Request) -> Response {
-    inertia_response!(
+    let response = inertia_response!(
         &req,
         "Home",
         HomeProps {
@@ -106,6 +110,11 @@ pub async fn index(req: Request) -> Response {
                 .to_string(),
             },
         },
-        inertia_config()
+        inertia_config().default_title(HOME_TITLE)
+    );
+    with_page_head(
+        response,
+        &PageMeta::page(HOME_TITLE, site_description(), "/"),
+        &schema::site_blocks(),
     )
 }

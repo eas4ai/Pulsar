@@ -17,9 +17,11 @@ Inertia 3 + Svelte 5. See every kit in the
 
 ## Stack
 
-- Rust 2024, Suprnova 3.2.1, Tokio, SeaORM, SQLite by default.
+- Rust 2024, Suprnova 4.1.0, Tokio, SeaORM, SQLite by default.
 - Vue 3, Inertia, Vuetify, Vite, and Bun for frontend tooling.
 - Markdown content rendered through Suprnova content helpers.
+- Server-rendered metadata, JSON-LD, sitemap, robots policy, `llms.txt`, and
+  discoverable Markdown twins for documentation and published articles.
 - Integration tests drive the real HTTP router through an ephemeral loopback
   server.
 
@@ -99,7 +101,7 @@ cd frontend && bun run check && bun run build
 ## Key Routes
 
 - Public: `/`, `/docs`, `/docs/getting-started`, `/blog`, `/blog/{slug}`,
-  `/feed.xml`
+  `/feed.xml`, `/sitemap.xml`, `/robots.txt`, `/llms.txt`, `/llms-full.txt`
 - Guest auth: `/login`, `/register`, `/forgot-password`, `/reset-password`
 - Authenticated: `/dashboard`, `/profile`, `/verify-email`
 - Authoring: `/admin/articles`, `/admin/articles/create`,
@@ -108,4 +110,4 @@ cd frontend && bun run check && bun run build
 
 ## Upgrading
 
-For the Suprnova 3.2.1 upgrade, follow [UPGRADE.md](UPGRADE.md), including production configuration and rollback steps.
+For the Suprnova 4.1.0 upgrade, follow [UPGRADE.md](UPGRADE.md), including production configuration and rollback steps.

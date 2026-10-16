@@ -7,10 +7,13 @@ pub mod dashboard;
 pub mod docs;
 pub mod feed;
 pub mod home;
+pub mod llms;
 pub mod members;
 pub mod moderation;
 pub mod password_reset;
 pub mod profile;
+pub mod robots;
+pub mod sitemap;
 pub mod taxonomy;
 pub mod verify_email;
 
@@ -21,7 +24,14 @@ use suprnova::{
 
 /// The app's external base URL (for building emailed links). `APP_URL` or the dev default.
 pub(crate) fn app_url() -> String {
-    std::env::var("APP_URL").unwrap_or_else(|_| "http://localhost:8765".into())
+    std::env::var("APP_URL")
+        .unwrap_or_else(|_| "http://localhost:8765".into())
+        .trim_end_matches('/')
+        .to_string()
+}
+
+pub(crate) fn site_name() -> String {
+    std::env::var("APP_NAME").unwrap_or_else(|_| "Pulsar".into())
 }
 
 pub(crate) fn inertia_config() -> InertiaConfig {
@@ -30,6 +40,88 @@ pub(crate) fn inertia_config() -> InertiaConfig {
         | suprnova::Environment::Development
         | suprnova::Environment::Testing => InertiaConfig::new(),
         _ => InertiaConfig::new().production(),
+    }
+}
+
+pub(crate) fn inertia_config_titled(title: &str) -> InertiaConfig {
+    inertia_config().default_title(format!("{title} · {}", site_name()))
+}
+
+/// Splice metadata into the finished initial HTML response.
+pub(crate) fn with_head(response: suprnova::Response, markup: &str) -> suprnova::Response {
+    let res = response?;
+    if markup.is_empty()
+        || !res
+            .header_value("Content-Type")
+            .is_some_and(|value| value.starts_with("text/html"))
+    {
+        return Ok(res);
+    }
+
+    let Ok(body) = std::str::from_utf8(res.body()) else {
+        return Ok(res);
+    };
+    let Some(at) = body.rfind("</head>") else {
+        return Ok(res);
+    };
+
+    let mut spliced = String::with_capacity(body.len() + markup.len());
+    spliced.push_str(&body[..at]);
+    spliced.push_str(markup);
+    spliced.push_str(&body[at..]);
+
+    let status = res.status_code();
+    let headers = res
+        .headers()
+        .filter(|(name, _)| {
+            !name.eq_ignore_ascii_case("content-type")
+                && !name.eq_ignore_ascii_case("content-length")
+        })
+        .map(|(name, value)| (name.to_string(), value.to_string()))
+        .collect::<Vec<_>>();
+    let mut rebuilt = HttpResponse::html(spliced).status(status);
+    for (name, value) in headers {
+        rebuilt = rebuilt.header(name, value);
+    }
+    Ok(rebuilt)
+}
+
+pub(crate) fn json_ld_markup(blocks: &[serde_json::Value]) -> String {
+    let nonce = suprnova::CspNonce::current()
+        .map(|value| format!(" nonce=\"{}\"", crate::content::meta::escape_attr(&value)))
+        .unwrap_or_default();
+    blocks
+        .iter()
+        .map(|block| {
+            let json = serde_json::to_string(block)
+                .unwrap_or_else(|_| "{}".to_string())
+                .replace('/', "\\/");
+            format!("<script type=\"application/ld+json\"{nonce}>{json}</script>\n")
+        })
+        .collect()
+}
+
+pub(crate) fn with_page_head(
+    response: suprnova::Response,
+    meta: &crate::content::meta::PageMeta,
+    blocks: &[serde_json::Value],
+) -> suprnova::Response {
+    let mut markup = meta.render();
+    markup.push_str(&json_ld_markup(blocks));
+    with_head(response, &markup)
+}
+
+#[cfg(test)]
+mod head_tests {
+    use super::*;
+
+    #[test]
+    fn json_ld_cannot_terminate_its_script_element() {
+        let markup = json_ld_markup(&[serde_json::json!({
+            "headline": "</script><img src=x>"
+        })]);
+        assert_eq!(markup.matches("</script>").count(), 1);
+        assert!(markup.contains("<\\/script>"));
     }
 }
 

@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import SiteHead from '../../components/SiteHead.vue'
 import type { TopicsIndexProps } from '../../types/inertia-props'
 
 defineProps<TopicsIndexProps>()
 </script>
 
 <template>
+  <SiteHead title="Topics" />
   <v-container class="taxonomy-page">
     <header class="console-hero">
       <div>

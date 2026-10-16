@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import SiteHead from '../../components/SiteHead.vue'
 import type { ArticleShowProps } from '../../types/inertia-props'
 
 defineProps<ArticleShowProps>()
 </script>
 
 <template>
+  <SiteHead :title="article.title" />
   <v-container class="article-page article-page--show">
     <v-btn to="/blog" variant="text" prepend-icon="mdi-arrow-left" class="mb-4">
       Blog

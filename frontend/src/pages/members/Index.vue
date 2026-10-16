@@ -1,10 +1,12 @@
 <script setup lang="ts">
+import SiteHead from '../../components/SiteHead.vue'
 import type { MembersIndexProps } from '../../types/inertia-props'
 
 defineProps<MembersIndexProps>()
 </script>
 
 <template>
+  <SiteHead title="Members" />
   <v-container class="member-page">
     <header class="console-hero">
       <div>

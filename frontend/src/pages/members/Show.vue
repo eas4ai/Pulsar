@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import SiteHead from '../../components/SiteHead.vue'
 import type { MemberShowProps } from '../../types/inertia-props'
 
 const props = defineProps<MemberShowProps>()
@@ -63,6 +64,7 @@ const counts = computed(() => [
 </script>
 
 <template>
+  <SiteHead :title="member.display_name" />
   <v-container class="member-page member-page--show">
     <v-btn to="/members" variant="text" prepend-icon="mdi-arrow-left" class="mb-4">
       Members

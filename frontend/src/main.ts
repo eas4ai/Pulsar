@@ -5,7 +5,10 @@ import VuetifyInertiaLink from 'vuetify-inertia-link'
 import vuetify from './plugins/vuetify'
 import AppLayout from './layouts/AppLayout.vue'
 
+const nonce = document.querySelector<HTMLMetaElement>('meta[property="csp-nonce"]')?.nonce
+
 createInertiaApp({
+  nonce,
   resolve: (name) => {
     const pages = import.meta.glob<DefineComponent>('./pages/**/*.vue', {
       eager: true,

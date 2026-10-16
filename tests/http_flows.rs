@@ -99,6 +99,16 @@ async fn home_page_exposes_landing_sections() {
     assert!(resp.body.contains("Ship a Suprnova product site"));
     assert!(resp.body.contains("features"));
     assert!(resp.body.contains("capabilities"));
+    let policy = resp
+        .headers
+        .get("content-security-policy")
+        .expect("HTML responses carry the enforced security policy");
+    assert!(policy.contains("script-src"));
+    assert!(policy.contains("'nonce-"));
+    assert!(
+        resp.body.contains("property=\"csp-nonce\"") || resp.body.contains("property='csp-nonce'"),
+        "the Inertia document exposes the request nonce"
+    );
 }
 
 // ============================================================================

@@ -18,7 +18,8 @@ use suprnova::auth::AuthConfig;
 use suprnova::mail::{Mail, MailFake};
 use suprnova::{
     App, Auth, AuthManager, CsrfMiddleware, EloquentUserProvider, IncludeMiddleware,
-    Inertia303Middleware, MiddlewareRegistry, SessionConfig, SessionMiddleware, handle_request,
+    Inertia303Middleware, MiddlewareRegistry, SecurityHeaders, SessionConfig, SessionMiddleware,
+    handle_request,
 };
 
 use pulsar::middleware::LoggingMiddleware;
@@ -48,6 +49,7 @@ pub async fn setup() -> Harness {
     unsafe {
         std::env::set_var("MAIL_FROM", "test@pulsar.test");
         std::env::set_var("APP_URL", "http://pulsar.test");
+        std::env::set_var("SECURITY_HEADERS", "balanced");
     }
     let mail = Mail::fake();
 
@@ -80,7 +82,14 @@ impl Harness {
         let router = Arc::new(pulsar::routes::register());
         let registry = Arc::new(
             MiddlewareRegistry::new()
+                .append(SecurityHeaders::from_env().expect("test security header configuration"))
                 .append(LoggingMiddleware)
+                .append(
+                    suprnova_markdown::MarkdownMiddleware::new(
+                        pulsar::content::markdown::PublicMarkdown,
+                    )
+                    .max_age(0),
+                )
                 .append(SessionMiddleware::new(SessionConfig::from_env()))
                 .append(CsrfMiddleware::new())
                 .append(IncludeMiddleware)

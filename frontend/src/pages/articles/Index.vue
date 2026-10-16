@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import ArticleCard from '../../components/articles/ArticleCard.vue'
+import SiteHead from '../../components/SiteHead.vue'
 import type { ArticlesIndexProps } from '../../types/inertia-props'
 
 defineProps<ArticlesIndexProps>()
 </script>
 
 <template>
+  <SiteHead title="Blog" />
   <v-container class="article-page">
     <header class="console-hero">
       <div>

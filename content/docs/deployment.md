@@ -24,6 +24,7 @@ The Vite build writes assets into `public/assets`. The docs build writes JSON ar
 - `RATE_LIMIT_DRIVER=redis`
 - `RATE_LIMIT_REDIS_URL=<redis url>`
 - `MAIL_DRIVER=smtp` (or another delivering driver) and mail credentials for verification and reset links
+- `SEO_DESCRIPTION`, `SEO_SOCIAL_IMAGE`, and the remaining `SEO_*` settings from `.env.example`
 
 Use `openssl rand -base64 32 | tr '+/' '-_' | tr -d '='` to generate `APP_KEY`.
 
@@ -51,6 +52,8 @@ After deployment, verify:
 - `/docs` renders the manual.
 - `/blog` renders seeded or published articles.
 - `/feed.xml` returns XML.
+- `/sitemap.xml` and `/robots.txt` use the production `APP_URL`.
+- `/llms.txt`, `/llms-full.txt`, and a documentation `.md` twin return text.
 - `/login` and `/register` render.
 
 Continue with [Customization](customization.md).

@@ -6,9 +6,12 @@ use sea_orm::{ConnectionTrait, Database, DbBackend, Statement};
 async fn console_initializes_encryption_only_for_real_commands() {
     let working =
         std::env::temp_dir().join(format!("pulsar-console-bootstrap-{}", std::process::id()));
+    if working.exists() {
+        std::fs::remove_dir_all(&working).unwrap();
+    }
     std::fs::create_dir_all(&working).unwrap();
-    let run = |args: &[&str], environment: &str, key: Option<&str>| {
-        let mut command = Command::new(env!("CARGO_BIN_EXE_console"));
+    let run = |binary: &str, args: &[&str], environment: &str, key: Option<&str>| {
+        let mut command = Command::new(binary);
         command
             .args(args)
             .current_dir(&working)
@@ -29,7 +32,12 @@ async fn console_initializes_encryption_only_for_real_commands() {
 
     // Informational paths must remain usable without production credentials.
     for argument in ["--help", "--version"] {
-        let output = run(&[argument], "production", None);
+        let output = run(
+            env!("CARGO_BIN_EXE_console"),
+            &[argument],
+            "production",
+            None,
+        );
         assert!(
             output.status.success(),
             "{argument}: {}",
@@ -40,7 +48,12 @@ async fn console_initializes_encryption_only_for_real_commands() {
 
     // A real bootstrap must reject missing and malformed keys before opening DB.
     for key in [None, Some("invalid-key")] {
-        let output = run(&["db:seed"], "production", key);
+        let output = run(
+            env!("CARGO_BIN_EXE_console"),
+            &["db:seed"],
+            "production",
+            key,
+        );
         assert!(!output.status.success());
         assert!(
             String::from_utf8_lossy(&output.stderr).contains("framework encryption init failed")
@@ -48,8 +61,49 @@ async fn console_initializes_encryption_only_for_real_commands() {
         assert!(!working.join("test.db").exists());
     }
 
-    // The real console bootstrap must initialize Crypt before Magnetar.
+    // Real console commands initialize Crypt before Magnetar, but bootstrap
+    // must not silently migrate the database. Deployments run `migrate` once
+    // and then start every process against that known schema.
     let output = run(
+        env!("CARGO_BIN_EXE_console"),
+        &["db:seed"],
+        "test",
+        Some("AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"),
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let db = Database::connect(format!("sqlite://{}", working.join("test.db").display()))
+        .await
+        .unwrap();
+    let row = db
+        .query_one_raw(Statement::from_string(
+            DbBackend::Sqlite,
+            "SELECT COUNT(*) AS count FROM sqlite_master WHERE type = 'table' AND name = 'articles'",
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(row.try_get::<i64>("", "count").unwrap(), 0);
+    db.close().await.unwrap();
+    std::fs::remove_file(working.join("test.db")).unwrap();
+
+    let output = run(
+        env!("CARGO_BIN_EXE_pulsar"),
+        &["migrate"],
+        "test",
+        Some("AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"),
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+
+    let output = run(
+        env!("CARGO_BIN_EXE_console"),
         &["db:seed"],
         "test",
         Some("AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE"),

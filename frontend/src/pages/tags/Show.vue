@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import SiteHead from '../../components/SiteHead.vue'
 import type { TagShowProps } from '../../types/inertia-props'
 
 const props = defineProps<TagShowProps>()
@@ -24,6 +25,7 @@ const counts = computed(() => [
 </script>
 
 <template>
+  <SiteHead :title="tag.name" />
   <v-container class="taxonomy-page taxonomy-page--show">
     <article class="taxonomy-detail">
       <header class="taxonomy-detail__header">

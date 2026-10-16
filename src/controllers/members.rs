@@ -4,7 +4,8 @@ use serde::Serialize;
 use suprnova::eloquent::{Direction, Model};
 use suprnova::{FrameworkError, InertiaProps, Request, Response, handler, inertia_response};
 
-use crate::controllers::inertia_config;
+use crate::content::meta::PageMeta;
+use crate::controllers::{inertia_config_titled, site_name, with_page_head};
 use crate::models::profile::Profile;
 
 #[derive(Clone, Debug, Serialize)]
@@ -63,11 +64,20 @@ pub async fn index(req: Request) -> Response {
         .map(summary)
         .collect::<Vec<_>>();
 
-    inertia_response!(
+    let response = inertia_response!(
         &req,
         "members/Index",
         MembersIndexProps { members },
-        inertia_config()
+        inertia_config_titled("Members")
+    );
+    with_page_head(
+        response,
+        &PageMeta::page(
+            format!("Members · {}", site_name()),
+            "Public profiles from the Pulsar community.",
+            "/members",
+        ),
+        &[],
     )
 }
 
@@ -79,14 +89,25 @@ pub async fn show(req: Request) -> Response {
     let profile = Profile::find_by_handle(handle)
         .await?
         .ok_or_else(|| FrameworkError::not_found(format!("member `{handle}`")))?;
+    let title = profile.display_name.clone();
+    let description = profile
+        .bio
+        .clone()
+        .unwrap_or_else(|| format!("Public profile for {title}."));
+    let path = format!("/members/{}", profile.handle);
 
-    inertia_response!(
+    let response = inertia_response!(
         &req,
         "members/Show",
         MemberShowProps {
             member: summary(profile)
         },
-        inertia_config()
+        inertia_config_titled(&title)
+    );
+    with_page_head(
+        response,
+        &PageMeta::page(format!("{title} · {}", site_name()), description, path),
+        &[],
     )
 }
 

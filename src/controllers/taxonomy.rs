@@ -4,7 +4,8 @@ use serde::Serialize;
 use suprnova::eloquent::{Direction, Model};
 use suprnova::{FrameworkError, InertiaProps, Request, Response, handler, inertia_response};
 
-use crate::controllers::inertia_config;
+use crate::content::meta::PageMeta;
+use crate::controllers::{inertia_config_titled, site_name, with_page_head};
 use crate::models::category::Category;
 use crate::models::tag::Tag;
 use crate::models::topic::Topic;
@@ -74,11 +75,20 @@ pub async fn topics_index(req: Request) -> Response {
         .map(topic_list_item)
         .collect::<Vec<_>>();
 
-    inertia_response!(
+    let response = inertia_response!(
         &req,
         "topics/Index",
         TopicsIndexProps { topics },
-        inertia_config()
+        inertia_config_titled("Topics")
+    );
+    with_page_head(
+        response,
+        &PageMeta::page(
+            format!("Topics · {}", site_name()),
+            "Browse visible Pulsar topics and their contributions.",
+            "/topics",
+        ),
+        &[],
     )
 }
 
@@ -91,14 +101,25 @@ pub async fn topic_show(req: Request) -> Response {
         .await?
         .filter(|topic| topic.is_visible)
         .ok_or_else(|| FrameworkError::not_found(format!("topic `{slug}`")))?;
+    let title = topic.name.clone();
+    let description = topic
+        .description
+        .clone()
+        .unwrap_or_else(|| format!("Contributions filed under {title}."));
+    let path = format!("/topics/{}", topic.slug);
 
-    inertia_response!(
+    let response = inertia_response!(
         &req,
         "topics/Show",
         TopicShowProps {
             topic: topic_detail(topic)
         },
-        inertia_config()
+        inertia_config_titled(&title)
+    );
+    with_page_head(
+        response,
+        &PageMeta::page(format!("{title} · {}", site_name()), description, path),
+        &[],
     )
 }
 
@@ -110,14 +131,25 @@ pub async fn tag_show(req: Request) -> Response {
     let tag = Tag::find_by_slug(slug)
         .await?
         .ok_or_else(|| FrameworkError::not_found(format!("tag `{slug}`")))?;
+    let title = tag.name.clone();
+    let path = format!("/tags/{}", tag.slug);
 
-    inertia_response!(
+    let response = inertia_response!(
         &req,
         "tags/Show",
         TagShowProps {
             tag: tag_detail(tag)
         },
-        inertia_config()
+        inertia_config_titled(&title)
+    );
+    with_page_head(
+        response,
+        &PageMeta::page(
+            format!("{title} · {}", site_name()),
+            format!("Public Pulsar content tagged {title}."),
+            path,
+        ),
+        &[],
     )
 }
 
@@ -130,14 +162,25 @@ pub async fn category_show(req: Request) -> Response {
         .await?
         .filter(|category| category.is_visible)
         .ok_or_else(|| FrameworkError::not_found(format!("category `{slug}`")))?;
+    let title = category.name.clone();
+    let description = category
+        .description
+        .clone()
+        .unwrap_or_else(|| format!("Public Pulsar content in {title}."));
+    let path = format!("/categories/{}", category.slug);
 
-    inertia_response!(
+    let response = inertia_response!(
         &req,
         "categories/Show",
         CategoryShowProps {
             category: category_detail(category)
         },
-        inertia_config()
+        inertia_config_titled(&title)
+    );
+    with_page_head(
+        response,
+        &PageMeta::page(format!("{title} · {}", site_name()), description, path),
+        &[],
     )
 }
 

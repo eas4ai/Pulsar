@@ -25,7 +25,22 @@ Update:
 - `frontend/src/plugins/vuetify.ts`
 - files under `public/`
 
+Set the public identity in `.env`: `APP_NAME`, `APP_URL`, `VITE_APP_NAME`, and
+the `SEO_*` values control titles, canonical URLs, social cards, language,
+theme color, and structured data. Replace `public/social-card.jpg` with a
+1280×720 image or update its configured dimensions.
+
 Keep the layout system intact until your replacement design covers every page. Partial restyles make a starter kit feel unfinished.
+
+## Search and Agent Discovery
+
+Public pages include server-rendered metadata and JSON-LD. `/sitemap.xml` and
+`/robots.txt` guide search crawlers. `/llms.txt` maps the site for language
+models, while `/llms-full.txt` provides the complete public corpus.
+
+Documentation and published articles also have `.md` twins, such as
+`/docs/getting-started.md`. The HTML page advertises each twin with a Markdown
+alternate link. Article lookup always filters to published records.
 
 ## Add Domain Models
 

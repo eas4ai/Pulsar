@@ -25,14 +25,12 @@
 
 use std::sync::Arc;
 
-use sea_orm_migration::MigratorTrait;
-
 #[allow(unused_imports)]
 use suprnova::{
     App, Auth, AuthConfig, AuthManager, CsrfMiddleware, DB, EloquentUserProvider, FrameworkError,
     Frontend, IncludeMiddleware, Inertia, InertiaConfig, InertiaRequestExt, InertiaSharedData,
-    Prop, SessionConfig, SessionMiddleware, bind, global_middleware, indexmap::IndexMap,
-    serde_json, singleton,
+    Prop, SecurityHeaders, SessionConfig, SessionMiddleware, bind, global_middleware,
+    indexmap::IndexMap, serde_json, singleton,
 };
 
 use crate::middleware;
@@ -87,12 +85,7 @@ pub async fn register() {
 
     // Initialize database connection
     DB::init().await.expect("Failed to connect to database");
-    suprnova::rate_limit::bootstrap_default().await;
     let db = DB::connection().expect("DB not initialized");
-    // Apply the kit schema before Magnetar can create its shared user table.
-    crate::migrations::Migrator::up(db.inner(), None)
-        .await
-        .expect("Failed to migrate application database");
     let magnetar = suprnova::MagnetarConfig::from_sea_orm(db.inner().clone()).passkey_config(
         suprnova::PasskeyConfig {
             rp_id: std::env::var("PASSKEY_RP_ID").unwrap_or_else(|_| "localhost".to_string()),
@@ -104,8 +97,19 @@ pub async fn register() {
         .await
         .expect("Failed to initialize Magnetar");
 
+    // Security policy wraps the complete HTTP stack so error pages and
+    // framework-generated asset tags share the request's CSP nonce.
+    global_middleware!(SecurityHeaders::from_env().expect("Invalid security header configuration"));
+
     // Global middleware (runs on every request in registration order)
     global_middleware!(middleware::LoggingMiddleware);
+
+    // Public prose has a discoverable `.md` twin for agents and text-only
+    // clients. Zero-age caching prevents a withdrawn article remaining public.
+    global_middleware!(
+        suprnova_markdown::MarkdownMiddleware::new(crate::content::markdown::PublicMarkdown)
+            .max_age(0)
+    );
 
     // Session middleware (required for authentication)
     let session_config = SessionConfig::from_env();

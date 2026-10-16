@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { usePage } from '@inertiajs/vue3'
 import BrandMark from '../components/BrandMark.vue'
+import SiteHead from '../components/SiteHead.vue'
 import CtaBand from '../components/landing/CtaBand.vue'
 import FeatureGrid from '../components/landing/FeatureGrid.vue'
 import HeroCodePanel from '../components/landing/HeroCodePanel.vue'
@@ -18,6 +19,7 @@ const user = computed(
 </script>
 
 <template>
+  <SiteHead title="Pulsar - Suprnova product-site starter" :suffix="false" />
   <div class="landing-page">
     <section class="landing-hero">
       <div class="landing-hero__visual" aria-hidden="true">

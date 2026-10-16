@@ -10,6 +10,10 @@ use crate::models::user::User;
 routes! {
     // Public routes
     get!("/", controllers::home::index),
+    get!("/sitemap.xml", controllers::sitemap::index),
+    get!("/robots.txt", controllers::robots::index),
+    get!("/llms.txt", controllers::llms::index),
+    get!("/llms-full.txt", controllers::llms::full),
     get!("/docs", controllers::docs::index),
     get!("/docs/{slug}", controllers::docs::show),
     get!("/blog", controllers::articles::index),

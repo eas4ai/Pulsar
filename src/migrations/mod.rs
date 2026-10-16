@@ -1,5 +1,6 @@
 pub use sea_orm_migration::prelude::*;
-use suprnova::rbac::migrations::CreateRbacTables;
+use suprnova::rbac::migrations::{CreateRbacTables, RbacToSpatieLayout};
+use suprnova::session::migrations::{CreateSessionsTable, SessionUserKey};
 
 mod m20240101_000001_create_users_table;
 mod m20240101_000002_create_sessions_table;
@@ -21,8 +22,15 @@ impl MigratorTrait for Migrator {
             Box::new(m20240101_000004_add_email_verified_at_to_users::Migration),
             Box::new(m20240101_000005_create_auth_flow_tokens::Migration),
             Box::new(CreateRbacTables),
+            // Suprnova 4 reads the Laravel-compatible Spatie layout. This
+            // migration preserves the rows created by older Pulsar releases.
+            Box::new(RbacToSpatieLayout),
             Box::new(m20260110_000006_create_articles::Migration),
             Box::new(m20260610_000007_create_v2_foundations::Migration),
+            // Pulsar's original session migration predates Suprnova 4. Move
+            // that table into the Laravel layout after all application
+            // migrations, preserving active session rows.
+            Box::new(CreateSessionsTable::new(SessionUserKey::Integer)),
         ]
     }
 }
