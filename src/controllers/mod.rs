@@ -111,20 +111,6 @@ pub(crate) fn with_page_head(
     with_head(response, &markup)
 }
 
-#[cfg(test)]
-mod head_tests {
-    use super::*;
-
-    #[test]
-    fn json_ld_cannot_terminate_its_script_element() {
-        let markup = json_ld_markup(&[serde_json::json!({
-            "headline": "</script><img src=x>"
-        })]);
-        assert_eq!(markup.matches("</script>").count(), 1);
-        assert!(markup.contains("<\\/script>"));
-    }
-}
-
 // ============================================================================
 // Inertia-aware form validation
 //
@@ -249,4 +235,18 @@ pub(crate) fn errors_json(errors: &ValidationErrors) -> serde_json::Value {
 /// `{ message, errors }` envelope.
 pub(crate) fn validation_failure(errors: ValidationErrors) -> HttpResponse {
     FrameworkError::Validation(errors).into()
+}
+
+#[cfg(test)]
+mod head_tests {
+    use super::*;
+
+    #[test]
+    fn json_ld_cannot_terminate_its_script_element() {
+        let markup = json_ld_markup(&[serde_json::json!({
+            "headline": "</script><img src=x>"
+        })]);
+        assert_eq!(markup.matches("</script>").count(), 1);
+        assert!(markup.contains("<\\/script>"));
+    }
 }
