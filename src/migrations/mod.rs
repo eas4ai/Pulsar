@@ -15,7 +15,7 @@ pub struct Migrator;
 #[async_trait::async_trait]
 impl MigratorTrait for Migrator {
     fn migrations() -> Vec<Box<dyn MigrationTrait>> {
-        vec![
+        let mut migrations: Vec<Box<dyn MigrationTrait>> = vec![
             Box::new(m20240101_000001_create_users_table::Migration),
             Box::new(m20240101_000002_create_sessions_table::Migration),
             Box::new(m20240101_000003_create_remember_tokens_table::Migration),
@@ -31,6 +31,13 @@ impl MigratorTrait for Migrator {
             // that table into the Laravel layout after all application
             // migrations, preserving active session rows.
             Box::new(CreateSessionsTable::new(SessionUserKey::Integer)),
-        ]
+            Box::new(suprnova::auth::migrations::UniqueEmailIgnoringCase::on(
+                "app_users",
+                "email",
+            )),
+            Box::new(suprnova::render_cache::migration::Migration),
+        ];
+        migrations.extend(suprnova::agents::migrations());
+        migrations
     }
 }

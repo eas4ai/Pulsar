@@ -2,6 +2,7 @@
 
 pub mod articles;
 pub mod docs;
+pub mod docs_props;
 pub mod markdown;
 pub mod meta;
 pub mod rendering;

@@ -1,8 +1,8 @@
-import 'vuetify/styles'
-import '@mdi/font/css/materialdesignicons.css'
+import { icons } from './icons'
 import { createVuetify } from 'vuetify'
 
 export default createVuetify({
+  icons,
   theme: {
     defaultTheme: 'light',
     themes: {

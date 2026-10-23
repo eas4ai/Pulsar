@@ -29,6 +29,7 @@ function submit() {
         <v-form @submit.prevent="submit">
           <v-text-field
             v-model="form.name"
+            maxlength="120"
             label="Name"
             type="text"
             autocomplete="name"
@@ -40,6 +41,7 @@ function submit() {
             label="Email address"
             type="email"
             autocomplete="email"
+            maxlength="254"
             :error-messages="form.errors.email"
             required
           />

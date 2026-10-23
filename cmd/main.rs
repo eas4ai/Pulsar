@@ -2,7 +2,7 @@
 
 use suprnova::Application;
 
-use pulsar::{bootstrap, config, migrations, routes};
+use pulsar::{agents, bootstrap, config, live, migrations, routes};
 
 // `#[suprnova::main]`, not `#[tokio::main]`: the framework loads `.env`
 // while the process is still single-threaded, then builds the runtime.
@@ -16,7 +16,10 @@ async fn main() {
     Application::new()
         .config(config::register_all)
         .bootstrap(bootstrap::register)
-        .routes(routes::register)
+        .http_bootstrap(|| async { bootstrap::register_http_stack() })
+        .try_routes_async(|| async {
+            live::routes_with_render_cache(agents::serve(routes::register())?).await
+        })
         .migrations::<migrations::Migrator>()
         .run()
         .await;

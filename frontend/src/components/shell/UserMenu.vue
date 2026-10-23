@@ -41,6 +41,7 @@ const { mobile } = useDisplay()
         title="Profile"
         subtitle="Account settings"
       />
+      <v-list-item to="/connected-agents" prepend-icon="mdi-account-group-outline" title="Connected agents" />
       <v-divider />
       <v-list-item
         prepend-icon="mdi-logout"

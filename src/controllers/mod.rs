@@ -1,6 +1,7 @@
 pub mod admin_articles;
 pub mod admin_taxonomy;
 pub mod admin_users;
+pub mod agents;
 pub mod articles;
 pub mod auth;
 pub mod dashboard;
@@ -35,12 +36,7 @@ pub(crate) fn site_name() -> String {
 }
 
 pub(crate) fn inertia_config() -> InertiaConfig {
-    match suprnova::Environment::detect() {
-        suprnova::Environment::Local
-        | suprnova::Environment::Development
-        | suprnova::Environment::Testing => InertiaConfig::new(),
-        _ => InertiaConfig::new().production(),
-    }
+    crate::bootstrap::inertia_config()
 }
 
 pub(crate) fn inertia_config_titled(title: &str) -> InertiaConfig {

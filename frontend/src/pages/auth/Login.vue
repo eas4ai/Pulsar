@@ -31,6 +31,7 @@ function submit() {
             label="Email address"
             type="email"
             autocomplete="email"
+            maxlength="254"
             :error-messages="form.errors.email"
             required
           />

@@ -1,6 +1,6 @@
 //! Documentation controllers.
 
-use suprnova::content::{DocsCatalog, DocsChapter};
+use crate::content::docs_props::{DocsCatalog, DocsChapter};
 use suprnova::{InertiaProps, Request, Response, handler, inertia_response};
 
 use crate::content::docs::{first_chapter_slug, load_catalog, load_chapter};
@@ -27,7 +27,10 @@ pub async fn index(req: Request) -> Response {
     let response = inertia_response!(
         &req,
         "docs/Index",
-        DocsPageProps { catalog, chapter },
+        DocsPageProps {
+            catalog: catalog.into(),
+            chapter: chapter.into()
+        },
         inertia_config_titled(&title)
     );
     with_page_head(
@@ -52,7 +55,10 @@ pub async fn show(req: Request) -> Response {
     let response = inertia_response!(
         &req,
         "docs/Show",
-        DocsPageProps { catalog, chapter },
+        DocsPageProps {
+            catalog: catalog.into(),
+            chapter: chapter.into()
+        },
         inertia_config_titled(&title)
     );
     with_page_head(

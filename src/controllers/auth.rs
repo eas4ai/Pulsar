@@ -32,12 +32,17 @@ pub struct LoginProps {}
 
 #[handler]
 pub async fn show_login(req: Request) -> Response {
+    crate::middleware::authenticate::remember_return_to(&req);
     inertia_response!(&req, "auth/Login", LoginProps {}, inertia_config())
 }
 
 #[derive(Deserialize, Validate)]
 pub struct LoginRequest {
-    #[validate(email(message = "Please enter a valid email address"))]
+    #[validate(
+        email(message = "Please enter a valid email address"),
+        length(max = 254, message = "Email must be at most 254 characters")
+    )]
+    #[serde(deserialize_with = "crate::email_address::deserialize")]
     pub email: String,
     #[validate(length(min = 1, message = "Password is required"))]
     pub password: String,
@@ -97,6 +102,11 @@ pub async fn login(req: Request) -> Response {
                     return Err(error.into());
                 }
             }
+            if suprnova::Redirect::intended_url().is_some() {
+                return Ok(suprnova::Inertia::location(suprnova::Redirect::intended(
+                    "/dashboard",
+                )));
+            }
             redirect!("/dashboard").into()
         }
         Err(FrameworkError::Domain {
@@ -120,6 +130,7 @@ pub struct RegisterProps {}
 
 #[handler]
 pub async fn show_register(req: Request) -> Response {
+    crate::middleware::authenticate::remember_return_to(&req);
     inertia_response!(&req, "auth/Register", RegisterProps {}, inertia_config())
 }
 
@@ -127,7 +138,11 @@ pub async fn show_register(req: Request) -> Response {
 pub struct RegisterRequest {
     #[validate(length(min = 2, message = "Name must be at least 2 characters"))]
     pub name: String,
-    #[validate(email(message = "Please enter a valid email address"))]
+    #[validate(
+        email(message = "Please enter a valid email address"),
+        length(max = 254, message = "Email must be at most 254 characters")
+    )]
+    #[serde(deserialize_with = "crate::email_address::deserialize")]
     pub email: String,
     #[validate(length(min = 8, message = "Password must be at least 8 characters"))]
     pub password: String,
@@ -256,6 +271,11 @@ pub async fn register(req: Request) -> Response {
         tracing::warn!(error = %err, "failed to send verification email on registration");
     }
 
+    if suprnova::Redirect::intended_url().is_some() {
+        return Ok(suprnova::Inertia::location(suprnova::Redirect::intended(
+            "/dashboard",
+        )));
+    }
     redirect!("/dashboard").into()
 }
 

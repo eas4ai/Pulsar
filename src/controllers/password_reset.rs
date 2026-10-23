@@ -53,7 +53,11 @@ pub struct ResetPasswordProps {
 
 #[derive(Deserialize, Validate)]
 pub struct SendLinkRequest {
-    #[validate(email(message = "Enter a valid email address."))]
+    #[validate(
+        email(message = "Enter a valid email address."),
+        length(max = 254, message = "Email must be at most 254 characters")
+    )]
+    #[serde(deserialize_with = "crate::email_address::deserialize")]
     pub email: String,
 }
 
