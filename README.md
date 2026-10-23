@@ -17,7 +17,9 @@ Inertia 3 + Svelte 5. See every kit in the
 
 ## Stack
 
-- Rust 2024, Suprnova 4.1.0, Tokio, SeaORM, SQLite by default.
+Pulsar 2.2.0 uses suprnova-markdown 0.5.5.
+
+- Rust 2024, Suprnova 4.6.1, Tokio, SeaORM, SQLite by default.
 - Vue 3, Inertia, Vuetify, Vite, and Bun for frontend tooling.
 - Markdown content rendered through Suprnova content helpers.
 - Server-rendered metadata, JSON-LD, sitemap, robots policy, `llms.txt`, and
@@ -34,6 +36,17 @@ local test mode. Copy the generated value into `APP_KEY`:
 cp .env.example .env
 openssl rand -base64 32 | tr '+/' '-_' | tr -d '='
 ```
+
+Generate a persistent agent signing key in your terminal, then store both
+`AGENT_AUTH_KEY_ID` and `AGENT_AUTH_PRIVATE_KEY` in your local configuration:
+
+```bash
+cargo run --bin console -- agents:key
+```
+
+Keep the key private and use the same key across instances of an environment.
+Pulsar serves agent consent and connection pages, with no application tools
+exposed until you add them.
 
 Default development ports are intentionally uncommon:
 
@@ -92,10 +105,13 @@ review queue of draft articles awaiting publication.
 Run these before handing work off:
 
 ```bash
+(cd frontend && bun install --frozen-lockfile && bun run check && bun run build)
 cargo run --bin console -- docs:build
 cargo run --bin console -- articles:seed
+cargo fmt --check
 cargo test
-cd frontend && bun run check && bun run build
+cargo clippy --all-targets
+cargo audit
 ```
 
 ## Key Routes
@@ -110,4 +126,4 @@ cd frontend && bun run check && bun run build
 
 ## Upgrading
 
-For the Suprnova 4.1.0 upgrade, follow [UPGRADE.md](UPGRADE.md), including production configuration and rollback steps.
+For the Pulsar 2.2.0 and Suprnova 4.6.1 upgrade, follow [UPGRADE.md](UPGRADE.md), including production configuration and rollback steps.

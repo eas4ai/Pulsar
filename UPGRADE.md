@@ -1,5 +1,78 @@
 # Upgrade Guide
 
+## Pulsar 2.1.1 → 2.2.0
+
+Release `v2.2.0` upgrades Suprnova from 4.1.0 to 4.6.1 and suprnova-markdown from 0.3.0 to 0.5.5. Rust and frontend versions are 2.2.0. Keep Rust 1.94+ and use Bun with the committed `frontend/bun.lock`.
+
+### Prepare
+
+Preserve the deployed configuration, `APP_KEY`, database, uploads, generated docs, binaries and assets. Take a consistent SQLite backup or PostgreSQL dump. Stop writers before the final backup and migration. Merge the release into a branch while keeping your application customizations:
+
+```bash
+git fetch upstream refs/tags/v2.2.0
+git switch -c upgrade/suprnova-4.6.1
+git merge --no-ff FETCH_HEAD
+```
+
+Keep the existing `APP_KEY`. The starter now serves the framework's MCP endpoint, OAuth consent pages and agent account claims. Generate a persistent signing key in a trusted terminal, then store both `AGENT_AUTH_KEY_ID` and `AGENT_AUTH_PRIVATE_KEY` in your deployment's secret configuration:
+
+```bash
+cargo run --locked --bin console -- agents:key
+```
+
+Retain a delivering production `MAIL_DRIVER`. Replicated servers need `RATE_LIMIT_DRIVER=redis` and `RATE_LIMIT_REDIS_URL`. Production boot refuses the default log mailer and per-process limiter unless their explicit acknowledgment flags are set; those flags are appropriate only when discarding mail or using a single process is intentional.
+
+Use the same signing key on every instance of an environment. Boot refuses a missing key. Pulsar declares no agent tools or scopes; its existing publishing and account routes retain their UI authorization rules. Add tools and scopes explicitly when your application needs them.
+
+### Build and migrate
+
+```bash
+suprnova generate-types
+cargo build --locked --release --bins
+(cd frontend && bun install --frozen-lockfile && bun run check && bun run build)
+cargo run --locked --bin console -- docs:build
+cargo test --locked
+cargo clippy --all-targets
+cargo audit
+```
+
+This release refreshes the dependencies named by the security audit. Keep `.cargo/audit.toml` with the application: its documented exception covers the inactive `rkyv` 0.7 compatibility dependency, for which no compatible fixed release exists. Review the exception and its expiry when changing dependency features. Six unmaintained dependency warnings remain for `basic-toml`, `bincode`, `paste`, `proc-macro-error2`, `ttf-parser` and `yaml-rust`; updating these packages within the current dependency constraints does not remove the warnings.
+
+Use the Suprnova 4.6.1 CLI for type generation. Run it before the frontend check if you changed Rust props. Commit both generated type files. The starter now uses local documentation DTOs so the generator can describe their fields. The type generator refuses tool schemas for the three account forms because their email deserializer is custom, and for the taxonomy form because `sort_order` is `Option<Value>`. None of these forms is offered as a tool.
+
+Deploy the binaries with the matching `public/assets/` and `storage/content/docs/`. Stop writers and run migrations once before restarting the fleet:
+
+```bash
+./target/release/pulsar migrate
+./target/release/pulsar serve --no-migrate
+```
+
+The migrations add the RenderCache ledger, the agents tables and a case-insensitive unique index on `app_users.email`. Before migrating, merge accounts whose email addresses differ only in case and retain their related records. The index migration refuses such duplicates. Existing application, session and RBAC rows are preserved. Magnetar also migrates its own auth tables on boot, including the nullable verification address digest; allow the first instance to finish before starting the rest.
+
+### Application changes
+
+Suprnova 4.6.1 includes the Live action stack fix: the framework frames below an action stay within the 1 MiB budget in a debug build. It also includes the router audit, shared notes gate rule and Rust formatting fixes already present in this starter.
+
+Keep process-wide services in `bootstrap::register` and HTTP middleware in `bootstrap::register_http_stack`. Console and worker images no longer need built frontend assets. The server installs agents, Live routes and RenderCache in that order. Keep `live::authorize()` in bootstrap and in router tests before installing the Live routes.
+
+The application stylesheet and Vuetify styles are separate Vite entries in both Rust and `frontend/vite.config.ts`; remove the application stylesheet import from `frontend/src/main.ts` and the global Vuetify styles import from its plugin. The root template loads the integrity-checked Live async script from `/__live/assets` with the request's CSP nonce. Retain these routes in any proxy rules. Vue, Inertia and their shared utilities load in separate chunks and each page loads on demand. The Vuetify icons use SVG paths instead of the full icon font; add new application icons to `frontend/src/plugins/icons.ts`.
+
+The Inertia asset version now follows the built manifest automatically. Port any local `INERTIA_VERSION` override to the shared `bootstrap::inertia_config()` builder if you still need a manual version.
+
+Shared Inertia props are now registered by name (`auth` and `root`). A cacheable Inertia route with an opaque share hook or provider fails boot in 4.6.1. Keep named shares when adding cached routes, and declare which are public and which resolve per request. This release does not opt Pulsar's personalized pages into public static publication.
+
+Sign-in, registration and password-reset requests trim and lowercase ASCII email addresses before validation. Sign-in and registration preserve a safe same-origin `return_to` for consent flows. Pulsar keeps its stricter 120-character display-name limit and its existing verification flow.
+
+Fingerprinted Vite JS and CSS now use `Cache-Control: public, max-age=31536000, immutable`. Other public files retain Pulsar's one-day policy. Neither should issue session or CSRF cookies for an unchanged guest session. Purge any shared cache that stored cookie-bearing responses before this upgrade. If a public response needs a state cookie or embeds a CSRF token, the framework makes it `private, no-store`.
+
+### Verify and roll back
+
+Run `cargo test --test page_budget` after building assets and docs. It checks the actual server router, including Live assets, against the default page budgets over the home, docs, blog, members, topics and guest account entry pages.
+
+After deployment, check those pages, one published article and its Markdown twin, `/feed.xml`, SEO endpoints, login, registration, verification mail, password reset, profile editing and role-gated authoring. Check `/oauth/approve` and `/agent/claim` send guests through sign-in, and `/connected-agents` lists only the signed-in user's grants. Verify the CSP nonce, fingerprinted asset cache headers and absence of asset cookies. Exercise production mail, Redis and the deployed database in their own environment.
+
+To roll back, stop writers and restore the complete 2.1.1 database backup, binary, assets, generated docs and configuration together. Keep the original `APP_KEY`. Restore the previous release as a unit so the database and auth state match the code using them.
+
 ## Pulsar 2.1.0 → 2.1.1
 
 Release `v2.1.1` prevents publicly cached responses from carrying session or CSRF cookies. Upgrade the application binary and frontend assets normally. No database migration or configuration change is required.
