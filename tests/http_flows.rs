@@ -601,7 +601,7 @@ async fn inertia_submissions_render_errors_and_303_redirects() {
     assert_eq!(resp.status, 302, "Inertia POST login: {}", resp.body);
     assert_eq!(resp.location(), "/dashboard");
 
-    // The shared `auth.user` prop (AuthShare in bootstrap.rs) rides every
+    // The shared `auth.user` prop (registered in bootstrap.rs) rides every
     // page render once authenticated - it is what the layout's user menu
     // and Dashboard nav link key off.
     let resp = client.get("/dashboard").await;
@@ -741,8 +741,8 @@ async fn public_statics_resolve_through_fallback() {
         );
         assert_eq!(
             asset.headers.get("cache-control").map(String::as_str),
-            Some("public, max-age=86400"),
-            "built frontend assets carry the static cache policy"
+            Some("public, max-age=31536000, immutable"),
+            "fingerprinted frontend assets carry the immutable cache policy"
         );
         assert!(
             !asset.body.is_empty(),
@@ -775,4 +775,130 @@ async fn publicly_cached_branding_files_do_not_set_cookies() {
             "{path} must not combine public caching with Set-Cookie"
         );
     }
+}
+
+#[tokio::test]
+async fn account_forms_normalize_email_before_validation() {
+    let (harness, mut client) = common::spawned_client().await;
+    assert_eq!(client.get("/register").await.status, 200);
+    let response = client
+        .post_json(
+            "/register",
+            json!({
+                "name": "Mixed Case",
+                "email": "  Mixed.Case@Example.Test  ",
+                "password": "supersecret",
+                "password_confirmation": "supersecret",
+            }),
+        )
+        .await;
+    assert_eq!(response.status, 302, "{}", response.body);
+    let user = reload("mixed.case@example.test").await;
+    assert_eq!(user.email, "mixed.case@example.test");
+    assert_eq!(client.post_json("/logout", json!({})).await.status, 302);
+    assert_eq!(client.get("/forgot-password").await.status, 200);
+    let before = harness.mail.captured().len();
+    let response = client
+        .post_json(
+            "/forgot-password",
+            json!({
+                "email": "  MIXED.CASE@EXAMPLE.TEST  ",
+            }),
+        )
+        .await;
+    assert_eq!(response.status, 302, "{}", response.body);
+    assert_eq!(harness.mail.captured().len(), before + 1);
+    assert_eq!(client.get("/login").await.status, 200);
+    let response = client
+        .post_json(
+            "/login",
+            json!({
+                "email": "  MIXED.CASE@EXAMPLE.TEST  ",
+                "password": "supersecret",
+            }),
+        )
+        .await;
+    assert_eq!(response.status, 302, "{}", response.body);
+    assert_eq!(response.location(), "/dashboard");
+}
+
+#[tokio::test]
+async fn sign_in_preserves_only_same_origin_return_addresses() {
+    let (_harness, mut client) = common::spawned_client().await;
+    User::create("Consent User", "consent@example.test", "supersecret")
+        .await
+        .expect("create consent user");
+    assert_eq!(
+        client
+            .get("/login?return_to=%2Fconnected-agents")
+            .await
+            .status,
+        200
+    );
+    let response = client
+        .inertia_post_json(
+            "/login",
+            json!({
+                "email": "consent@example.test", "password": "supersecret",
+            }),
+        )
+        .await;
+    assert_eq!(response.status, 409, "{}", response.body);
+    assert_eq!(
+        response
+            .headers
+            .get("x-inertia-location")
+            .map(String::as_str),
+        Some("/connected-agents")
+    );
+    let response = client.get("/login?return_to=%2F%2Fevil.example").await;
+    assert_eq!(response.status, 302);
+    assert_eq!(response.location(), "/dashboard");
+    assert_eq!(client.post_json("/logout", json!({})).await.status, 302);
+    assert_eq!(
+        client
+            .get("/login?return_to=https%3A%2F%2Fevil.example")
+            .await
+            .status,
+        200
+    );
+    let response = client
+        .post_json(
+            "/login",
+            json!({
+                "email": "consent@example.test", "password": "supersecret",
+            }),
+        )
+        .await;
+    assert_eq!(response.status, 302, "{}", response.body);
+    assert_eq!(response.location(), "/dashboard");
+}
+
+#[tokio::test]
+async fn registration_keeps_the_consent_return_address() {
+    let (_harness, mut client) = common::spawned_client().await;
+    assert_eq!(
+        client
+            .get("/register?return_to=%2Fconnected-agents")
+            .await
+            .status,
+        200
+    );
+    let response = client
+        .inertia_post_json(
+            "/register",
+            json!({
+                "name": "New Consent User", "email": "new-consent@example.test",
+                "password": "supersecret", "password_confirmation": "supersecret",
+            }),
+        )
+        .await;
+    assert_eq!(response.status, 409, "{}", response.body);
+    assert_eq!(
+        response
+            .headers
+            .get("x-inertia-location")
+            .map(String::as_str),
+        Some("/connected-agents")
+    );
 }

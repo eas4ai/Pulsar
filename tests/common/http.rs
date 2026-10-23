@@ -66,7 +66,7 @@ pub async fn setup() -> Harness {
     // cases.
     App::bind::<dyn suprnova::CacheStore>(Arc::new(suprnova::InMemoryCache::new()));
 
-    App::register_inertia_shared(Arc::new(pulsar::bootstrap::AuthShare));
+    pulsar::bootstrap::register_inertia_shared_data();
 
     Harness {
         _lock: lock,

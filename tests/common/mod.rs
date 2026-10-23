@@ -25,6 +25,7 @@ pub static TEST_LOCK: Mutex<()> = Mutex::const_new(());
 static TEST_DATABASE: OnceCell<DatabaseConnection> = OnceCell::const_new();
 static MAGNETAR: OnceCell<()> = OnceCell::const_new();
 
+// Keep the migration-seeded RenderCache epoch row; model writes advance it.
 async fn clear_test_rows(connection: &DatabaseConnection) {
     let tables = connection
         .query_all_raw(Statement::from_string(
@@ -32,7 +33,7 @@ async fn clear_test_rows(connection: &DatabaseConnection) {
             "SELECT name FROM sqlite_master \
              WHERE type = 'table' \
              AND name NOT LIKE 'sqlite_%' \
-             AND name <> 'seaql_migrations'",
+             AND name NOT IN ('seaql_migrations', 'suprnova_render_epochs')",
         ))
         .await
         .expect("list SQLite test tables");
