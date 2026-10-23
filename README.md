@@ -17,9 +17,9 @@ Inertia 3 + Svelte 5. See every kit in the
 
 ## Stack
 
-Pulsar 2.2.0 uses suprnova-markdown 0.5.5.
+Pulsar 2.2.1 uses suprnova-markdown 0.5.6.
 
-- Rust 2024, Suprnova 4.6.1, Tokio, SeaORM, SQLite by default.
+- Rust 2024, Suprnova 4.6.2, Tokio, SeaORM, SQLite by default.
 - Vue 3, Inertia, Vuetify, Vite, and Bun for frontend tooling.
 - Markdown content rendered through Suprnova content helpers.
 - Server-rendered metadata, JSON-LD, sitemap, robots policy, `llms.txt`, and
@@ -126,4 +126,4 @@ cargo audit
 
 ## Upgrading
 
-For the Pulsar 2.2.0 and Suprnova 4.6.1 upgrade, follow [UPGRADE.md](UPGRADE.md), including production configuration and rollback steps.
+For the Pulsar 2.2.1 and Suprnova 4.6.2 upgrade, follow [UPGRADE.md](UPGRADE.md), including production configuration and rollback steps.

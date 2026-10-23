@@ -1,5 +1,13 @@
 # Upgrade Guide
 
+## Pulsar 2.2.0 → 2.2.1
+
+Suprnova 4.6.2 and suprnova-markdown 0.5.6, which add to the framework's
+search and error surfaces and change nothing a deployed copy of this starter
+uses. Pin `suprnova` to `tag = "v4.6.2"` and `suprnova-markdown` to
+`tag = "v0.5.6"` in `Cargo.toml`, run `cargo update -p suprnova -p suprnova-markdown`,
+and redeploy. Nothing else changes.
+
 ## Pulsar 2.1.1 → 2.2.0
 
 Release `v2.2.0` upgrades Suprnova from 4.1.0 to 4.6.1 and suprnova-markdown from 0.3.0 to 0.5.5. Rust and frontend versions are 2.2.0. Keep Rust 1.94+ and use Bun with the committed `frontend/bun.lock`.
